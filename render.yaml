@@ -8,7 +8,6 @@ services:
   - type: web
     name: fab-ims-backend
     env: python
-    plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: python seed_data.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -32,7 +31,6 @@ services:
   - type: web
     name: fab-ims-frontend
     env: static
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
