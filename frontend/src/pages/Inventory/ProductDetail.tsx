@@ -6,7 +6,7 @@ import {
   ArrowLeft, Edit2, Plus, ImageOff, Package, MapPin,
   Truck, Tag, AlertTriangle, TrendingUp, TrendingDown, Settings2
 } from 'lucide-react'
-import { productsApi, stockMovementsApi } from '../../services/api'
+import { productsApi, stockMovementsApi, mediaUrl } from '../../services/api'
 import type { Product, StockMovementListOut, StockMovementCreate } from '../../types'
 import { StatusBadge } from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
@@ -98,7 +98,7 @@ export default function ProductDetail() {
         <div className="space-y-4">
           <div className="card overflow-hidden aspect-square">
             {product.image_url ? (
-              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+              <img src={mediaUrl(product.image_url)} alt={product.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50">
                 <ImageOff className="w-12 h-12 text-slate-300" />

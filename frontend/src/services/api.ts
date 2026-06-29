@@ -1,10 +1,20 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
+// In dev: VITE_API_URL is not set, so Vite proxy handles /api -> localhost:8000
+// In production on Render: VITE_API_URL = https://fab-ims-backend.onrender.com
+export const API_ORIGIN = import.meta.env.VITE_API_URL || ''
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_ORIGIN}/api`,
   headers: { 'Content-Type': 'application/json' },
 })
+
+// Prefix media file paths with the backend origin for production
+export function mediaUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined
+  return `${API_ORIGIN}${path}`
+}
 
 // Attach JWT token on every request
 api.interceptors.request.use((config) => {
@@ -31,7 +41,7 @@ api.interceptors.response.use(
     } else if (status >= 500) {
       toast.error('Server error. Please try again later.')
     } else if (detail) {
-      // Let individual callers handle 400/404 errors with specific messages
+      // Let individual callers handle 400/404 errors
     }
     return Promise.reject(error)
   },
