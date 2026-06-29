@@ -5,7 +5,7 @@ import {
   Plus, Search, Filter, Edit2, Trash2, Eye, Package,
   ChevronLeft, ChevronRight, AlertTriangle, ImageOff
 } from 'lucide-react'
-import { productsApi, categoriesApi, locationsApi } from '../../services/api'
+import { productsApi, categoriesApi, locationsApi, mediaUrl } from '../../services/api'
 import type { Product, ProductListOut, Category, Location } from '../../types'
 import { StatusBadge } from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
@@ -203,7 +203,7 @@ export default function InventoryList() {
                         <div className="w-10 h-10 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden">
                           {product.image_url ? (
                             <img
-                              src={product.image_url}
+                              src={mediaUrl(product.image_url)}
                               alt={product.name}
                               className="w-full h-full object-cover"
                             />

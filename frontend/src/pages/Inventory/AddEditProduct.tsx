@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Upload, X, Camera } from 'lucide-react'
-import { productsApi, categoriesApi, locationsApi, suppliersApi } from '../../services/api'
+import { productsApi, categoriesApi, locationsApi, suppliersApi, mediaUrl } from '../../services/api'
 import type { Product, Category, Location, Supplier } from '../../types'
 import FormField from '../../components/ui/FormField'
 import Spinner from '../../components/ui/Spinner'
@@ -68,7 +68,7 @@ export default function AddEditProduct() {
         product_status: product.status,
         notes: product.notes ?? '',
       })
-      if (product.image_url) setPreview(product.image_url)
+      if (product.image_url) setPreview(mediaUrl(product.image_url) ?? null)
     }
   }, [product, isEdit])
 
