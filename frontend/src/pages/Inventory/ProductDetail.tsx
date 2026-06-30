@@ -18,7 +18,7 @@ import { useAuth } from '../../context/AuthContext'
 export default function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { isAdmin } = useAuth()
+  const { } = useAuth()
   const qc = useQueryClient()
   const [movementModal, setMovementModal] = useState(false)
 
