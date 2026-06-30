@@ -30,7 +30,7 @@ export default function Dashboard() {
   const stats = data?.stats
   const recentActivity = data?.recent_activity ?? []
   const lowStockItems = data?.low_stock_items ?? []
-  const wpByStatus = data?.work_process_by_status ?? {}
+  const wpByStatus = (data?.work_process_by_status ?? {}) as Record<string, number>
 
   return (
     <div className="space-y-6">
@@ -123,7 +123,7 @@ export default function Dashboard() {
           <h3 className="text-sm font-semibold text-slate-700 mb-4">Work Process Status</h3>
           <div className="space-y-3">
             {(['Not Started', 'Started', 'In Process', 'Done'] as const).map((status) => {
-              const total = Object.values(wpByStatus).reduce((a, b) => a + b, 0) || 1
+              const total = Object.values(wpByStatus).reduce((a: number, b: number) => a + b, 0) || 1
               const count = wpByStatus[status] ?? 0
               const pct = Math.round((count / total) * 100)
               const colorMap = {
