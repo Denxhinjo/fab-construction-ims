@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     MEDIA_DIR: str = "media"
     MAX_FILE_SIZE_MB: int = 10
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
     APP_ENV: str = "development"
     DEBUG: bool = True
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
