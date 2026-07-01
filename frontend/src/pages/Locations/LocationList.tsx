@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Plus, MapPin, Phone, Mail, Edit2, Trash2, Package, User } from 'lucide-react'
 import { locationsApi } from '../../services/api'
 import type { Location } from '../../types'
@@ -20,6 +21,7 @@ const emptyForm = {
 export default function LocationList() {
   const qc = useQueryClient()
   const { isAdmin } = useAuth()
+  const { t } = useTranslation()
   const [modal, setModal] = useState<'create' | 'edit' | null>(null)
   const [editTarget, setEditTarget] = useState<Location | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -33,19 +35,19 @@ export default function LocationList() {
 
   const createMutation = useMutation({
     mutationFn: (data: typeof emptyForm) => locationsApi.create(data),
-    onSuccess: () => { toast.success('Location created'); qc.invalidateQueries({ queryKey: ['locations'] }); closeModal() },
+    onSuccess: () => { toast.success(t('locations.created')); qc.invalidateQueries({ queryKey: ['locations'] }); closeModal() },
     onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail ?? 'Failed'),
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: typeof emptyForm }) => locationsApi.update(id, data),
-    onSuccess: () => { toast.success('Location updated'); qc.invalidateQueries({ queryKey: ['locations'] }); closeModal() },
+    onSuccess: () => { toast.success(t('locations.updated')); qc.invalidateQueries({ queryKey: ['locations'] }); closeModal() },
     onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail ?? 'Failed'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => locationsApi.delete(id),
-    onSuccess: () => { toast.success('Location deleted'); qc.invalidateQueries({ queryKey: ['locations'] }); setDeleteId(null) },
+    onSuccess: () => { toast.success(t('locations.deleted')); qc.invalidateQueries({ queryKey: ['locations'] }); setDeleteId(null) },
     onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail ?? 'Failed'),
   })
 
@@ -64,7 +66,7 @@ export default function LocationList() {
 
   const validate = () => {
     const e: Record<string, string> = {}
-    if (!form.name.trim()) e.name = 'Name is required'
+    if (!form.name.trim()) e.name = t('locations.nameRequired')
     setErrors(e)
     return !Object.keys(e).length
   }
@@ -83,12 +85,12 @@ export default function LocationList() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Locations</h1>
-          <p className="text-slate-500 text-sm">{locations?.length ?? 0} locations configured</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t('locations.title')}</h1>
+          <p className="text-slate-500 text-sm">{t('locations.configured', { count: locations?.length ?? 0 })}</p>
         </div>
         {isAdmin && (
           <button onClick={openCreate} className="btn-primary">
-            <Plus className="w-4 h-4" /> Add Location
+            <Plus className="w-4 h-4" /> {t('locations.addLocation')}
           </button>
         )}
       </div>
@@ -98,9 +100,9 @@ export default function LocationList() {
       ) : (locations?.length ?? 0) === 0 ? (
         <EmptyState
           icon={<MapPin className="w-8 h-8 text-slate-400" />}
-          title="No locations yet"
-          description="Add warehouse or site locations to organize your inventory."
-          action={isAdmin ? <button onClick={openCreate} className="btn-primary"><Plus className="w-4 h-4" /> Add Location</button> : undefined}
+          title={t('locations.noLocations')}
+          description={t('locations.noLocationsDesc')}
+          action={isAdmin ? <button onClick={openCreate} className="btn-primary"><Plus className="w-4 h-4" /> {t('locations.addLocation')}</button> : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -117,7 +119,7 @@ export default function LocationList() {
                   </div>
                 </div>
                 <Badge variant={loc.is_active ? 'success' : 'gray'}>
-                  {loc.is_active ? 'Active' : 'Inactive'}
+                  {loc.is_active ? t('locations.active') : t('locations.inactive')}
                 </Badge>
               </div>
 
@@ -151,7 +153,7 @@ export default function LocationList() {
               <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-slate-500">
                   <Package className="w-4 h-4" />
-                  <span className="text-sm font-medium">{loc.product_count} products</span>
+                  <span className="text-sm font-medium">{t('locations.products', { count: loc.product_count })}</span>
                 </div>
                 {isAdmin && (
                   <div className="flex gap-1">
@@ -170,41 +172,41 @@ export default function LocationList() {
       )}
 
       {/* Create/Edit Modal */}
-      <Modal open={modal !== null} onClose={closeModal} title={modal === 'create' ? 'Add Location' : 'Edit Location'} size="lg">
+      <Modal open={modal !== null} onClose={closeModal} title={modal === 'create' ? t('locations.createLocation') : t('locations.editLocation')} size="lg">
         <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField label="Location Name" required error={errors.name}>
-            <input className="input-base" value={form.name} onChange={set('name')} placeholder="e.g. Main Warehouse" />
+          <FormField label={t('locations.name')} required error={errors.name}>
+            <input className="input-base" value={form.name} onChange={set('name')} placeholder={t('locations.namePlaceholder')} />
           </FormField>
-          <FormField label="City">
-            <input className="input-base" value={form.city} onChange={set('city')} placeholder="e.g. Houston" />
+          <FormField label={t('locations.city')}>
+            <input className="input-base" value={form.city} onChange={set('city')} placeholder={t('locations.cityPlaceholder')} />
           </FormField>
           <div className="sm:col-span-2">
-            <FormField label="Address">
-              <input className="input-base" value={form.address} onChange={set('address')} placeholder="Street address" />
+            <FormField label={t('locations.address')}>
+              <input className="input-base" value={form.address} onChange={set('address')} placeholder={t('locations.addressPlaceholder')} />
             </FormField>
           </div>
-          <FormField label="Manager / Contact Person">
-            <input className="input-base" value={form.manager_name} onChange={set('manager_name')} placeholder="Full name" />
+          <FormField label={t('locations.manager')}>
+            <input className="input-base" value={form.manager_name} onChange={set('manager_name')} placeholder={t('locations.managerPlaceholder')} />
           </FormField>
-          <FormField label="Contact Phone">
-            <input className="input-base" value={form.contact_phone} onChange={set('contact_phone')} placeholder="+1-555-0100" />
+          <FormField label={t('locations.contactPhone')}>
+            <input className="input-base" value={form.contact_phone} onChange={set('contact_phone')} placeholder={t('locations.phonePlaceholder')} />
           </FormField>
           <div className="sm:col-span-2">
-            <FormField label="Contact Email">
-              <input className="input-base" type="email" value={form.contact_email} onChange={set('contact_email')} placeholder="email@example.com" />
+            <FormField label={t('locations.contactEmail')}>
+              <input className="input-base" type="email" value={form.contact_email} onChange={set('contact_email')} placeholder={t('locations.emailPlaceholder')} />
             </FormField>
           </div>
           <div className="sm:col-span-2">
-            <FormField label="Notes">
-              <textarea className="input-base min-h-16 resize-y" value={form.notes} onChange={set('notes')} placeholder="Additional notes..." />
+            <FormField label={t('locations.notes')}>
+              <textarea className="input-base min-h-16 resize-y" value={form.notes} onChange={set('notes')} placeholder={t('locations.notesPlaceholder')} />
             </FormField>
           </div>
           <div className="sm:col-span-2 flex gap-3 pt-2">
             <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="flex-1 btn-primary justify-center">
               {(createMutation.isPending || updateMutation.isPending) ? <Spinner size="sm" /> : null}
-              {modal === 'create' ? 'Create Location' : 'Save Changes'}
+              {modal === 'create' ? t('locations.createLocation') : t('locations.saveChanges')}
             </button>
-            <button type="button" onClick={closeModal} className="btn-secondary">Cancel</button>
+            <button type="button" onClick={closeModal} className="btn-secondary">{t('locations.cancel')}</button>
           </div>
         </form>
       </Modal>
@@ -213,8 +215,8 @@ export default function LocationList() {
         open={deleteId !== null}
         onClose={() => setDeleteId(null)}
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
-        title="Delete Location"
-        message="Are you sure you want to delete this location? Products assigned to it will need to be reassigned."
+        title={t('locations.deleteTitle')}
+        message={t('locations.deleteWarning')}
         loading={deleteMutation.isPending}
       />
     </div>

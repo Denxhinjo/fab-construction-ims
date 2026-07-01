@@ -1,5 +1,6 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import i18n from '../i18n'
 
 // In dev: VITE_API_URL is not set, so Vite proxy handles /api -> localhost:8000
 // In production on Render: VITE_API_URL = https://fab-ims-backend.onrender.com
@@ -38,11 +39,11 @@ api.interceptors.response.use(
       localStorage.removeItem('user')
       window.location.href = '/login'
     } else if (status === 403) {
-      toast.error('Access denied: insufficient permissions')
+      toast.error(i18n.t('common.accessDenied'))
     } else if (status === 422) {
-      toast.error('Validation error: please check your input')
+      toast.error(i18n.t('common.validationError'))
     } else if (status >= 500) {
-      toast.error('Server error. Please try again later.')
+      toast.error(i18n.t('common.serverError'))
     } else if (detail) {
       // Let individual callers handle 400/404 errors
     }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import {
   Plus, Search, ClipboardList, Edit2, Trash2, Calendar,
@@ -18,6 +19,7 @@ export default function WorkProcessList() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const qc = useQueryClient()
+  const { t } = useTranslation()
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
@@ -41,12 +43,12 @@ export default function WorkProcessList() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => workProcessesApi.delete(id),
     onSuccess: () => {
-      toast.success('Work process deleted')
+      toast.success(t('workProcesses.deleted'))
       qc.invalidateQueries({ queryKey: ['work-processes'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       setDeleteId(null)
     },
-    onError: () => toast.error('Failed to delete'),
+    onError: () => toast.error(t('workProcesses.failedToSave')),
   })
 
   const setParam = (key: string, value: string) => {
@@ -69,11 +71,11 @@ export default function WorkProcessList() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Work Processes</h1>
-          <p className="text-slate-500 text-sm">{data?.total ?? 0} tasks total</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t('workProcesses.title')}</h1>
+          <p className="text-slate-500 text-sm">{t('workProcesses.tasksTotal', { count: data?.total ?? 0 })}</p>
         </div>
         <button onClick={() => navigate('/work-processes/new')} className="btn-primary">
-          <Plus className="w-4 h-4" /> New Task
+          <Plus className="w-4 h-4" /> {t('workProcesses.newTask')}
         </button>
       </div>
 
@@ -84,7 +86,7 @@ export default function WorkProcessList() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search work processes..."
+              placeholder={t('workProcesses.searchTasks')}
               value={search}
               onChange={(e) => setParam('search', e.target.value)}
               className="input-base pl-9"
@@ -94,20 +96,20 @@ export default function WorkProcessList() {
             onClick={() => setFiltersOpen((v) => !v)}
             className={`btn-secondary ${filtersOpen ? 'bg-brand-50 border-brand-200 text-brand-700' : ''}`}
           >
-            <Filter className="w-4 h-4" /> Filters
+            <Filter className="w-4 h-4" /> {t('workProcesses.filters')}
           </button>
         </div>
 
         {filtersOpen && (
           <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
             <select value={statusFilter} onChange={(e) => setParam('status', e.target.value)} className="input-base">
-              <option value="">All Statuses</option>
+              <option value="">{t('workProcesses.allStatuses')}</option>
               {['Not Started', 'Started', 'In Process', 'Done'].map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
             <select value={priorityFilter} onChange={(e) => setParam('priority', e.target.value)} className="input-base">
-              <option value="">All Priorities</option>
+              <option value="">{t('workProcesses.allPriorities')}</option>
               {['Low', 'Medium', 'High', 'Critical'].map(p => (
                 <option key={p} value={p}>{p}</option>
               ))}
@@ -122,11 +124,11 @@ export default function WorkProcessList() {
       ) : workProcesses.length === 0 ? (
         <EmptyState
           icon={<ClipboardList className="w-8 h-8 text-slate-400" />}
-          title="No work processes found"
-          description="Create work processes to track construction tasks and inventory usage."
+          title={t('workProcesses.noTasks')}
+          description={t('workProcesses.noTasksDesc')}
           action={
             <button onClick={() => navigate('/work-processes/new')} className="btn-primary">
-              <Plus className="w-4 h-4" /> New Task
+              <Plus className="w-4 h-4" /> {t('workProcesses.newTask')}
             </button>
           }
         />
@@ -166,7 +168,10 @@ export default function WorkProcessList() {
                           ? 'text-red-500 font-medium' : ''
                       }`}>
                         <Calendar className="w-3.5 h-3.5" />
-                        Due: {format(new Date(wp.due_date), 'MMM d, yyyy')}
+                        {new Date(wp.due_date) < new Date() && wp.status !== 'Done'
+                          ? t('workProcesses.dueOverdue')
+                          : t('workProcesses.due')}{' '}
+                        {format(new Date(wp.due_date), 'MMM d, yyyy')}
                       </span>
                     )}
                     {wp.product && (
@@ -200,7 +205,7 @@ export default function WorkProcessList() {
       {data && data.total_pages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-slate-500">
-            Page {data.page} of {data.total_pages}
+            {t('dashboard.page', { current: data.page, total: data.total_pages })}
           </p>
           <div className="flex gap-2">
             <button disabled={page <= 1} onClick={() => setParam('page', String(page - 1))} className="btn-secondary py-1.5 px-2.5 disabled:opacity-40">
@@ -217,8 +222,8 @@ export default function WorkProcessList() {
         open={deleteId !== null}
         onClose={() => setDeleteId(null)}
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
-        title="Delete Work Process"
-        message="Are you sure you want to delete this work process? This cannot be undone."
+        title={t('workProcesses.deleteTitle')}
+        message={t('workProcesses.deleteWarning')}
         loading={deleteMutation.isPending}
       />
     </div>

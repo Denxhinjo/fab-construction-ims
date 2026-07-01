@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Upload, X, Camera } from 'lucide-react'
 import { productsApi, categoriesApi, locationsApi, suppliersApi, mediaUrl } from '../../services/api'
 import type { Product, Category, Location, Supplier } from '../../types'
@@ -13,6 +14,7 @@ export default function AddEditProduct() {
   const isEdit = !!id
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -31,7 +33,7 @@ export default function AddEditProduct() {
     const data = await res.json()
     if (!res.ok || !data.secure_url) {
       console.error('Cloudinary error:', data)
-      throw new Error(data?.error?.message ?? 'Image upload failed')
+      throw new Error(data?.error?.message ?? t('product.imageUploadFailed'))
     }
     return data.secure_url
   }
@@ -94,7 +96,7 @@ export default function AddEditProduct() {
     mutationFn: (params: URLSearchParams) =>
       isEdit ? productsApi.update(Number(id), params) : productsApi.create(params),
     onSuccess: (res) => {
-      toast.success(isEdit ? 'Product updated!' : 'Product created!')
+      toast.success(isEdit ? t('product.updated') : t('product.created'))
       qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       navigate(`/inventory/${res.data.id}`)
@@ -109,16 +111,16 @@ export default function AddEditProduct() {
         ).join(', ')
         toast.error(`Validation: ${msg}`)
       } else {
-        toast.error('Failed to save product')
+        toast.error(t('product.failedToSave'))
       }
     },
   })
 
   const validate = () => {
     const e: Record<string, string> = {}
-    if (!form.name.trim()) e.name = 'Product name is required'
-    if (Number(form.quantity) < 0) e.quantity = 'Quantity cannot be negative'
-    if (Number(form.min_stock_level) < 0) e.min_stock_level = 'Min stock level cannot be negative'
+    if (!form.name.trim()) e.name = t('product.nameRequired')
+    if (Number(form.quantity) < 0) e.quantity = t('product.quantityNegative')
+    if (Number(form.min_stock_level) < 0) e.min_stock_level = t('product.minStockNegative')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -131,13 +133,13 @@ export default function AddEditProduct() {
     if (imageFile) {
       try {
         setUploadingImage(true)
-        toast.loading('Uploading image...', { id: 'img-upload' })
+        toast.loading(t('product.uploadingImage'), { id: 'img-upload' })
         imageUrl = await uploadToCloudinary(imageFile)
         toast.dismiss('img-upload')
       } catch (err) {
         toast.dismiss('img-upload')
-        const msg = err instanceof Error ? err.message : 'Image upload failed'
-        toast.error(`Image upload failed: ${msg}`)
+        const msg = err instanceof Error ? err.message : t('product.imageUploadFailed')
+        toast.error(`${t('product.imageUploadFailed')}: ${msg}`)
         setUploadingImage(false)
         return
       } finally {
@@ -179,9 +181,9 @@ export default function AddEditProduct() {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            {isEdit ? 'Edit Product' : 'Add Product'}
+            {isEdit ? t('product.editTitle') : t('product.addTitle')}
           </h1>
-          <p className="text-slate-500 text-sm">Fill in the product details below</p>
+          <p className="text-slate-500 text-sm">{t('product.subtitle')}</p>
         </div>
       </div>
 
@@ -190,36 +192,36 @@ export default function AddEditProduct() {
         <div className="lg:col-span-2 space-y-4">
           <div className="card p-6 space-y-4">
             <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">
-              Basic Information
+              {t('product.basicInfo')}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Product Name" required error={errors.name}>
-                <input className="input-base" value={form.name} onChange={set('name')} placeholder="e.g. W8x31 Steel Beam" />
+              <FormField label={t('product.name')} required error={errors.name}>
+                <input className="input-base" value={form.name} onChange={set('name')} placeholder={t('product.namePlaceholder')} />
               </FormField>
-              <FormField label="SKU / Item Code">
-                <input className="input-base" value={form.sku} onChange={set('sku')} placeholder="e.g. STL-001" />
+              <FormField label={t('product.sku')}>
+                <input className="input-base" value={form.sku} onChange={set('sku')} placeholder={t('product.skuPlaceholder')} />
               </FormField>
             </div>
-            <FormField label="Description">
+            <FormField label={t('product.description')}>
               <textarea
                 className="input-base min-h-20 resize-y"
                 value={form.description}
                 onChange={set('description')}
-                placeholder="Product description..."
+                placeholder={t('product.descriptionPlaceholder')}
               />
             </FormField>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Category">
+              <FormField label={t('product.category')}>
                 <select className="input-base" value={form.category_id} onChange={set('category_id')}>
-                  <option value="">Select category</option>
+                  <option value="">{t('product.selectCategory')}</option>
                   {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </FormField>
-              <FormField label="Status">
+              <FormField label={t('product.status')}>
                 <select className="input-base" value={form.product_status} onChange={set('product_status')}>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="discontinued">Discontinued</option>
+                  <option value="active">{t('common.active')}</option>
+                  <option value="inactive">{t('common.inactive')}</option>
+                  <option value="discontinued">{t('common.discontinued')}</option>
                 </select>
               </FormField>
             </div>
@@ -227,23 +229,23 @@ export default function AddEditProduct() {
 
           <div className="card p-6 space-y-4">
             <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">
-              Stock & Pricing
+              {t('product.stockPricing')}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <FormField label="Current Quantity" required error={errors.quantity}>
+              <FormField label={t('product.currentQuantity')} required error={errors.quantity}>
                 <input className="input-base" type="number" step="any" min="0" value={form.quantity} onChange={set('quantity')} />
               </FormField>
-              <FormField label="Unit">
+              <FormField label={t('product.unit')}>
                 <select className="input-base" value={form.unit} onChange={set('unit')}>
                   {['pcs', 'bags', 'rolls', 'sheets', 'meters', 'kg', 'liters', 'boxes', 'sets', 'pairs', 'tons', 'cases', 'buckets'].map(u => (
                     <option key={u} value={u}>{u}</option>
                   ))}
                 </select>
               </FormField>
-              <FormField label="Min Stock Level" error={errors.min_stock_level}>
+              <FormField label={t('product.minStockLevel')} error={errors.min_stock_level}>
                 <input className="input-base" type="number" step="any" min="0" value={form.min_stock_level} onChange={set('min_stock_level')} />
               </FormField>
-              <FormField label="Unit Price ($)">
+              <FormField label={t('product.unitPrice')}>
                 <input className="input-base" type="number" step="0.01" min="0" value={form.unit_price} onChange={set('unit_price')} placeholder="0.00" />
               </FormField>
             </div>
@@ -251,24 +253,24 @@ export default function AddEditProduct() {
 
           <div className="card p-6 space-y-4">
             <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">
-              Location & Supplier
+              {t('product.locationSupplier')}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Storage Location">
+              <FormField label={t('product.storageLocation')}>
                 <select className="input-base" value={form.location_id} onChange={set('location_id')}>
-                  <option value="">Select location</option>
+                  <option value="">{t('product.selectLocation')}</option>
                   {locations?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </FormField>
-              <FormField label="Supplier">
+              <FormField label={t('product.supplier')}>
                 <select className="input-base" value={form.supplier_id} onChange={set('supplier_id')}>
-                  <option value="">Select supplier</option>
+                  <option value="">{t('product.selectSupplier')}</option>
                   {suppliers?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </FormField>
             </div>
-            <FormField label="Notes">
-              <textarea className="input-base min-h-16 resize-y" value={form.notes} onChange={set('notes')} placeholder="Additional notes..." />
+            <FormField label={t('product.notes')}>
+              <textarea className="input-base min-h-16 resize-y" value={form.notes} onChange={set('notes')} placeholder={t('product.notesPlaceholder')} />
             </FormField>
           </div>
         </div>
@@ -276,7 +278,7 @@ export default function AddEditProduct() {
         {/* Sidebar: image upload + actions */}
         <div className="space-y-4">
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-700 mb-4">Product Image</h2>
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">{t('product.productImage')}</h2>
             <div
               className="relative aspect-square rounded-xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center cursor-pointer hover:border-brand-400 transition-colors group"
               onClick={() => fileRef.current?.click()}
@@ -298,8 +300,8 @@ export default function AddEditProduct() {
               ) : (
                 <div className="text-center p-4">
                   <Upload className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs text-slate-500 font-medium">Click to upload image</p>
-                  <p className="text-xs text-slate-400 mt-0.5">JPEG, PNG, WebP up to 10MB</p>
+                  <p className="text-xs text-slate-500 font-medium">{t('product.uploadImage')}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{t('product.uploadHint')}</p>
                 </div>
               )}
             </div>
@@ -309,18 +311,18 @@ export default function AddEditProduct() {
           <div className="card p-5 space-y-3">
             <button
               type="submit"
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || uploadingImage}
               className="w-full btn-primary justify-center"
             >
               {mutation.isPending ? <Spinner size="sm" /> : null}
-              {mutation.isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Product'}
+              {mutation.isPending ? t('product.saving') : isEdit ? t('product.saveChanges') : t('product.create')}
             </button>
             <button
               type="button"
               onClick={() => navigate(-1)}
               className="w-full btn-secondary justify-center"
             >
-              Cancel
+              {t('product.cancel')}
             </button>
           </div>
         </div>

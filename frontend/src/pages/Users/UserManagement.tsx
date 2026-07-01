@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import { Plus, Edit2, Trash2, Users, Shield, UserCheck, UserX, Mail, Phone } from 'lucide-react'
 import { usersApi } from '../../services/api'
@@ -20,6 +21,7 @@ const emptyCreate: UserCreate = {
 export default function UserManagement() {
   const qc = useQueryClient()
   const { user: currentUser } = useAuth()
+  const { t } = useTranslation()
   const [modal, setModal] = useState<'create' | 'edit' | null>(null)
   const [editTarget, setEditTarget] = useState<User | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
@@ -34,19 +36,19 @@ export default function UserManagement() {
 
   const createMutation = useMutation({
     mutationFn: (data: UserCreate) => usersApi.create(data),
-    onSuccess: () => { toast.success('User created'); qc.invalidateQueries({ queryKey: ['users'] }); closeModal() },
+    onSuccess: () => { toast.success(t('users.created')); qc.invalidateQueries({ queryKey: ['users'] }); closeModal() },
     onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail ?? 'Failed'),
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: UserUpdate }) => usersApi.update(id, data),
-    onSuccess: () => { toast.success('User updated'); qc.invalidateQueries({ queryKey: ['users'] }); closeModal() },
+    onSuccess: () => { toast.success(t('users.updated')); qc.invalidateQueries({ queryKey: ['users'] }); closeModal() },
     onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail ?? 'Failed'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => usersApi.delete(id),
-    onSuccess: () => { toast.success('User deleted'); qc.invalidateQueries({ queryKey: ['users'] }); setDeleteId(null) },
+    onSuccess: () => { toast.success(t('users.deleted')); qc.invalidateQueries({ queryKey: ['users'] }); setDeleteId(null) },
     onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail ?? 'Failed'),
   })
 
@@ -61,10 +63,10 @@ export default function UserManagement() {
 
   const validateCreate = () => {
     const e: Record<string, string> = {}
-    if (!createForm.email) e.email = 'Email required'
-    if (!createForm.username) e.username = 'Username required'
-    if (!createForm.full_name) e.full_name = 'Full name required'
-    if (!createForm.password || createForm.password.length < 6) e.password = 'Password must be ≥6 chars'
+    if (!createForm.email) e.email = t('users.emailRequired')
+    if (!createForm.username) e.username = t('users.usernameRequired')
+    if (!createForm.full_name) e.full_name = t('users.fullNameRequired')
+    if (!createForm.password || createForm.password.length < 6) e.password = t('users.passwordMinLength')
     setErrors(e)
     return !Object.keys(e).length
   }
@@ -88,21 +90,23 @@ export default function UserManagement() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">User Management</h1>
-          <p className="text-slate-500 text-sm">{users?.length ?? 0} users · {adminCount} admins · {activeCount} active</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t('users.title')}</h1>
+          <p className="text-slate-500 text-sm">
+            {t('users.summary', { total: users?.length ?? 0, admins: adminCount, active: activeCount })}
+          </p>
         </div>
         <button onClick={() => { setCreateForm(emptyCreate); setErrors({}); setModal('create') }} className="btn-primary">
-          <Plus className="w-4 h-4" /> Add User
+          <Plus className="w-4 h-4" /> {t('users.addUser')}
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Total Users', value: users?.length ?? 0, icon: <Users className="w-5 h-5 text-blue-600" />, bg: 'bg-blue-100' },
-          { label: 'Admins', value: adminCount, icon: <Shield className="w-5 h-5 text-purple-600" />, bg: 'bg-purple-100' },
-          { label: 'Active', value: activeCount, icon: <UserCheck className="w-5 h-5 text-green-600" />, bg: 'bg-green-100' },
-          { label: 'Inactive', value: (users?.length ?? 0) - activeCount, icon: <UserX className="w-5 h-5 text-slate-500" />, bg: 'bg-slate-100' },
+          { label: t('users.totalUsers'), value: users?.length ?? 0, icon: <Users className="w-5 h-5 text-blue-600" />, bg: 'bg-blue-100' },
+          { label: t('users.admins'), value: adminCount, icon: <Shield className="w-5 h-5 text-purple-600" />, bg: 'bg-purple-100' },
+          { label: t('users.active'), value: activeCount, icon: <UserCheck className="w-5 h-5 text-green-600" />, bg: 'bg-green-100' },
+          { label: t('users.inactive'), value: (users?.length ?? 0) - activeCount, icon: <UserX className="w-5 h-5 text-slate-500" />, bg: 'bg-slate-100' },
         ].map((s) => (
           <div key={s.label} className="card p-4 flex items-center gap-3">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${s.bg}`}>{s.icon}</div>
@@ -119,18 +123,18 @@ export default function UserManagement() {
         {isLoading ? (
           <div className="flex items-center justify-center py-16"><Spinner size="lg" /></div>
         ) : (users?.length ?? 0) === 0 ? (
-          <EmptyState icon={<Users className="w-8 h-8 text-slate-400" />} title="No users found" />
+          <EmptyState icon={<Users className="w-8 h-8 text-slate-400" />} title={t('users.noUsers')} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">User</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Contact</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Role</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Joined</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('users.userCol')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">{t('users.contact')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('users.role')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('users.status')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">{t('users.joined')}</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('users.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -147,7 +151,7 @@ export default function UserManagement() {
                           <p className="font-semibold text-slate-700">
                             {u.full_name}
                             {u.id === currentUser?.id && (
-                              <span className="ml-1.5 text-xs font-normal text-brand-600">(you)</span>
+                              <span className="ml-1.5 text-xs font-normal text-brand-600">{t('users.you')}</span>
                             )}
                           </p>
                           <p className="text-xs text-slate-400 font-mono">@{u.username}</p>
@@ -160,12 +164,12 @@ export default function UserManagement() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={u.role === 'admin' ? 'purple' : 'info'}>
-                        {u.role === 'admin' ? '⚡ Admin' : 'User'}
+                        {u.role === 'admin' ? t('users.roleAdmin') : t('users.roleUser')}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={u.is_active ? 'success' : 'gray'} dot>
-                        {u.is_active ? 'Active' : 'Inactive'}
+                        {u.is_active ? t('users.statusActive') : t('users.statusInactive')}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">
@@ -192,78 +196,78 @@ export default function UserManagement() {
       </div>
 
       {/* Create Modal */}
-      <Modal open={modal === 'create'} onClose={closeModal} title="Add New User" size="md">
+      <Modal open={modal === 'create'} onClose={closeModal} title={t('users.addNewUser')} size="md">
         <form onSubmit={handleCreateSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Full Name" required error={errors.full_name}>
+            <FormField label={t('users.fullName')} required error={errors.full_name}>
               <input className="input-base" value={createForm.full_name} onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })} placeholder="John Smith" />
             </FormField>
-            <FormField label="Username" required error={errors.username}>
+            <FormField label={t('users.username')} required error={errors.username}>
               <input className="input-base" value={createForm.username} onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })} placeholder="jsmith" />
             </FormField>
           </div>
-          <FormField label="Email" required error={errors.email}>
+          <FormField label={t('users.email')} required error={errors.email}>
             <input className="input-base" type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="jsmith@fabconstruction.com" />
           </FormField>
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Password" required error={errors.password}>
-              <input className="input-base" type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder="Min 6 characters" />
+            <FormField label={t('users.password')} required error={errors.password}>
+              <input className="input-base" type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder={t('users.passwordHint')} />
             </FormField>
-            <FormField label="Role">
+            <FormField label={t('users.role')}>
               <select className="input-base" value={createForm.role} onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as 'admin' | 'user' })}>
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
+                <option value="user">{t('users.roleUser')}</option>
+                <option value="admin">{t('users.roleAdmin')}</option>
               </select>
             </FormField>
           </div>
-          <FormField label="Phone">
+          <FormField label={t('users.phone')}>
             <input className="input-base" value={createForm.phone ?? ''} onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })} placeholder="+1-555-0100" />
           </FormField>
           <div className="flex gap-3 pt-2">
             <button type="submit" disabled={createMutation.isPending} className="flex-1 btn-primary justify-center">
               {createMutation.isPending ? <Spinner size="sm" /> : null}
-              Create User
+              {t('users.createUser')}
             </button>
-            <button type="button" onClick={closeModal} className="btn-secondary">Cancel</button>
+            <button type="button" onClick={closeModal} className="btn-secondary">{t('users.cancel')}</button>
           </div>
         </form>
       </Modal>
 
       {/* Edit Modal */}
-      <Modal open={modal === 'edit'} onClose={closeModal} title={`Edit: ${editTarget?.full_name}`} size="md">
+      <Modal open={modal === 'edit'} onClose={closeModal} title={`${t('users.editUser')} ${editTarget?.full_name}`} size="md">
         <form onSubmit={handleEditSubmit} className="space-y-4">
-          <FormField label="Full Name">
+          <FormField label={t('users.fullName')}>
             <input className="input-base" value={editForm.full_name ?? ''} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} />
           </FormField>
-          <FormField label="Email">
+          <FormField label={t('users.email')}>
             <input className="input-base" type="email" value={editForm.email ?? ''} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
           </FormField>
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Role">
+            <FormField label={t('users.role')}>
               <select className="input-base" value={editForm.role ?? 'user'} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
+                <option value="user">{t('users.roleUser')}</option>
+                <option value="admin">{t('users.roleAdmin')}</option>
               </select>
             </FormField>
-            <FormField label="Status">
+            <FormField label={t('users.status')}>
               <select className="input-base" value={editForm.is_active ? 'true' : 'false'} onChange={(e) => setEditForm({ ...editForm, is_active: e.target.value === 'true' })}>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
+                <option value="true">{t('users.statusActive')}</option>
+                <option value="false">{t('users.statusInactive')}</option>
               </select>
             </FormField>
           </div>
-          <FormField label="Phone">
+          <FormField label={t('users.phone')}>
             <input className="input-base" value={editForm.phone ?? ''} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
           </FormField>
-          <FormField label="New Password (leave blank to keep current)">
-            <input className="input-base" type="password" placeholder="Enter new password..." onChange={(e) => setEditForm({ ...editForm, password: e.target.value || undefined })} />
+          <FormField label={t('users.newPassword')}>
+            <input className="input-base" type="password" placeholder={t('users.newPasswordPlaceholder')} onChange={(e) => setEditForm({ ...editForm, password: e.target.value || undefined })} />
           </FormField>
           <div className="flex gap-3 pt-2">
             <button type="submit" disabled={updateMutation.isPending} className="flex-1 btn-primary justify-center">
               {updateMutation.isPending ? <Spinner size="sm" /> : null}
-              Save Changes
+              {t('users.saveChanges')}
             </button>
-            <button type="button" onClick={closeModal} className="btn-secondary">Cancel</button>
+            <button type="button" onClick={closeModal} className="btn-secondary">{t('users.cancel')}</button>
           </div>
         </form>
       </Modal>
@@ -272,8 +276,8 @@ export default function UserManagement() {
         open={deleteId !== null}
         onClose={() => setDeleteId(null)}
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
-        title="Delete User"
-        message="Are you sure you want to delete this user? This action cannot be undone."
+        title={t('users.deleteTitle')}
+        message={t('users.deleteWarning')}
         loading={deleteMutation.isPending}
       />
     </div>
