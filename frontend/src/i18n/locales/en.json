@@ -66,7 +66,14 @@
     "actions": "Actions",
     "noProducts": "No products found",
     "noProductsDesc": "Try adjusting your search or filters, or add a new product.",
-    "page": "Page {{current}} of {{total}} ({{items}} items)"
+    "page": "Page {{current}} of {{total}} ({{items}} items)",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "selected": "{{count}} selected",
+    "deleteSelected": "Delete Selected",
+    "deleteSelectedTitle": "Delete Selected Products",
+    "deleteSelectedWarning": "Are you sure you want to delete {{count}} products? This cannot be undone.",
+    "deletedSelected": "{{count}} products deleted successfully"
   },
   "product": {
     "addTitle": "Add Product",

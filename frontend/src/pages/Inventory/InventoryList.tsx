@@ -31,13 +31,14 @@ export default function InventoryList() {
 
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   const { data, isLoading } = useQuery<ProductListOut>({
     queryKey: ['products', { page, search, categoryId, locationId, statusFilter, lowStock }],
     queryFn: () =>
       productsApi.list({
-        page,
-        page_size: 20,
+        page, page_size: 20,
         search: search || undefined,
         category_id: categoryId || undefined,
         location_id: locationId || undefined,
@@ -67,29 +68,69 @@ export default function InventoryList() {
     onError: () => toast.error(t('product.failedToSave')),
   })
 
-  const setParam = useCallback((key: string, value: string) => {
-    const next = new URLSearchParams(searchParams)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    next.delete('page')
-    setSearchParams(next)
-  }, [searchParams, setSearchParams])
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true)
+    try {
+      await Promise.all([...selectedIds].map((id) => productsApi.delete(id)))
+      toast.success(t('inventory.deletedSelected', { count: selectedIds.size }))
+      setSelectedIds(new Set())
+      setBulkDeleteConfirm(false)
+      qc.invalidateQueries({ queryKey: ['products'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    } catch {
+      toast.error(t('product.failedToSave'))
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }
 
   const products = data?.items ?? []
+  const allSelected = products.length > 0 && products.every((p) => selectedIds.has(p.id))
+  const someSelected = products.some((p) => selectedIds.has(p.id))
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        products.forEach((p) => next.delete(p.id))
+        return next
+      })
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        products.forEach((p) => next.add(p.id))
+        return next
+      })
+    }
+  }
+
+  const toggleOne = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const setParam = useCallback((key: string, value: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (value) next.set(key, value); else next.delete(key)
+    next.delete('page')
+    setSearchParams(next)
+    setSelectedIds(new Set())
+  }, [searchParams, setSearchParams])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">{t('inventory.title')}</h1>
-          <p className="text-slate-500 text-sm">
-            {t('inventory.productsTotal', { count: data?.total ?? 0 })}
-          </p>
+          <p className="text-slate-500 text-sm">{t('inventory.productsTotal', { count: data?.total ?? 0 })}</p>
         </div>
         <button onClick={() => navigate('/inventory/new')} className="btn-primary">
-          <Plus className="w-4 h-4" />
-          {t('inventory.addProduct')}
+          <Plus className="w-4 h-4" /> {t('inventory.addProduct')}
         </button>
       </div>
 
@@ -98,19 +139,9 @@ export default function InventoryList() {
         <div className="flex gap-3 flex-wrap">
           <div className="relative flex-1 min-w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder={t('inventory.searchProducts')}
-              value={search}
-              onChange={(e) => setParam('search', e.target.value)}
-              className="input-base pl-9"
-            />
+            <input type="text" placeholder={t('inventory.searchProducts')} value={search} onChange={(e) => setParam('search', e.target.value)} className="input-base pl-9" />
           </div>
-
-          <button
-            onClick={() => setFiltersOpen((v) => !v)}
-            className={`btn-secondary gap-2 ${filtersOpen ? 'bg-brand-50 border-brand-200 text-brand-700' : ''}`}
-          >
+          <button onClick={() => setFiltersOpen((v) => !v)} className={`btn-secondary gap-2 ${filtersOpen ? 'bg-brand-50 border-brand-200 text-brand-700' : ''}`}>
             <Filter className="w-4 h-4" />
             {t('inventory.filters')}
             {(categoryId || locationId || statusFilter || lowStock) && (
@@ -120,46 +151,24 @@ export default function InventoryList() {
             )}
           </button>
         </div>
-
         {filtersOpen && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-100">
-            <select
-              value={categoryId}
-              onChange={(e) => setParam('category_id', e.target.value)}
-              className="input-base"
-            >
+            <select value={categoryId} onChange={(e) => setParam('category_id', e.target.value)} className="input-base">
               <option value="">{t('inventory.allCategories')}</option>
-              {categories?.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+              {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <select
-              value={locationId}
-              onChange={(e) => setParam('location_id', e.target.value)}
-              className="input-base"
-            >
+            <select value={locationId} onChange={(e) => setParam('location_id', e.target.value)} className="input-base">
               <option value="">{t('inventory.allLocations')}</option>
-              {locations?.map((l) => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
+              {locations?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setParam('status', e.target.value)}
-              className="input-base"
-            >
+            <select value={statusFilter} onChange={(e) => setParam('status', e.target.value)} className="input-base">
               <option value="">{t('inventory.allStatuses')}</option>
               <option value="active">{t('common.active')}</option>
               <option value="inactive">{t('common.inactive')}</option>
               <option value="discontinued">{t('common.discontinued')}</option>
             </select>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={lowStock}
-                onChange={(e) => setParam('low_stock', e.target.checked ? 'true' : '')}
-                className="w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
-              />
+              <input type="checkbox" checked={lowStock} onChange={(e) => setParam('low_stock', e.target.checked ? 'true' : '')} className="w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500" />
               <span className="text-sm text-slate-700 font-medium">{t('inventory.lowStockOnly')}</span>
             </label>
           </div>
@@ -169,25 +178,32 @@ export default function InventoryList() {
       {/* Table */}
       <div className="card overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Spinner size="lg" />
-          </div>
+          <div className="flex items-center justify-center py-16"><Spinner size="lg" /></div>
         ) : products.length === 0 ? (
           <EmptyState
             icon={<Package className="w-8 h-8 text-slate-400" />}
             title={t('inventory.noProducts')}
             description={t('inventory.noProductsDesc')}
-            action={
-              <button onClick={() => navigate('/inventory/new')} className="btn-primary">
-                <Plus className="w-4 h-4" /> {t('inventory.addProduct')}
-              </button>
-            }
+            action={<button onClick={() => navigate('/inventory/new')} className="btn-primary"><Plus className="w-4 h-4" /> {t('inventory.addProduct')}</button>}
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
+                  {/* Select-all checkbox — admin only */}
+                  {isAdmin && (
+                    <th className="pl-4 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected }}
+                        onChange={toggleAll}
+                        className="w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500 cursor-pointer"
+                        title={allSelected ? t('inventory.deselectAll') : t('inventory.selectAll')}
+                      />
+                    </th>
+                  )}
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('inventory.product')}</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">{t('inventory.category')}</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('inventory.quantity')}</th>
@@ -197,98 +213,74 @@ export default function InventoryList() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {products.map((product: Product) => (
-                  <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        {/* Product image */}
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden">
-                          {product.image_url ? (
-                            <img
-                              src={mediaUrl(product.image_url)}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <ImageOff className="w-4 h-4 text-slate-300" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p
-                            className="font-semibold text-slate-700 cursor-pointer hover:text-brand-600 truncate"
-                            onClick={() => navigate(`/inventory/${product.id}`)}
-                          >
-                            {product.name}
-                          </p>
-                          {product.sku && (
-                            <p className="text-xs text-slate-400 font-mono">{product.sku}</p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {product.category ? (
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                          style={{
-                            backgroundColor: product.category.color + '20',
-                            color: product.category.color,
-                          }}
-                        >
-                          {product.category.name}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 text-xs">—</span>
+                {products.map((product: Product) => {
+                  const isSelected = selectedIds.has(product.id)
+                  return (
+                    <tr key={product.id} className={`hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-brand-50/40' : ''}`}>
+                      {/* Row checkbox — admin only */}
+                      {isAdmin && (
+                        <td className="pl-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleOne(product.id)}
+                            className="w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500 cursor-pointer"
+                          />
+                        </td>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        {product.is_low_stock && (
-                          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                        )}
-                        <span className={`font-semibold ${product.is_low_stock ? 'text-red-600' : 'text-slate-700'}`}>
-                          {product.quantity}
-                        </span>
-                        <span className="text-slate-400 text-xs">{product.unit}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
-                      {product.location?.name ?? '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={product.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => navigate(`/inventory/${product.id}`)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                          title={t('common.view')}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => navigate(`/inventory/${product.id}/edit`)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                          title={t('common.edit')}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        {isAdmin && (
-                          <button
-                            onClick={() => setDeleteId(product.id)}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                            title={t('common.delete')}
-                          >
-                            <Trash2 className="w-4 h-4" />
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden">
+                            {product.image_url ? (
+                              <img src={mediaUrl(product.image_url)} alt={product.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <ImageOff className="w-4 h-4 text-slate-300" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-700 cursor-pointer hover:text-brand-600 truncate" onClick={() => navigate(`/inventory/${product.id}`)}>
+                              {product.name}
+                            </p>
+                            {product.sku && <p className="text-xs text-slate-400 font-mono">{product.sku}</p>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        {product.category ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: product.category.color + '20', color: product.category.color }}>
+                            {product.category.name}
+                          </span>
+                        ) : <span className="text-slate-400 text-xs">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {product.is_low_stock && <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />}
+                          <span className={`font-semibold ${product.is_low_stock ? 'text-red-600' : 'text-slate-700'}`}>{product.quantity}</span>
+                          <span className="text-slate-400 text-xs">{product.unit}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 hidden lg:table-cell">{product.location?.name ?? '—'}</td>
+                      <td className="px-4 py-3"><StatusBadge status={product.status} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => navigate(`/inventory/${product.id}`)} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title={t('common.view')}>
+                            <Eye className="w-4 h-4" />
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button onClick={() => navigate(`/inventory/${product.id}/edit`)} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors" title={t('common.edit')}>
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          {isAdmin && (
+                            <button onClick={() => setDeleteId(product.id)} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors" title={t('common.delete')}>
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -297,36 +289,55 @@ export default function InventoryList() {
         {/* Pagination */}
         {data && data.total_pages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
-            <p className="text-sm text-slate-500">
-              {t('inventory.page', { current: data.page, total: data.total_pages, items: data.total })}
-            </p>
+            <p className="text-sm text-slate-500">{t('inventory.page', { current: data.page, total: data.total_pages, items: data.total })}</p>
             <div className="flex gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => setParam('page', String(page - 1))}
-                className="btn-secondary py-1.5 px-2.5 disabled:opacity-40"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                disabled={page >= data.total_pages}
-                onClick={() => setParam('page', String(page + 1))}
-                className="btn-secondary py-1.5 px-2.5 disabled:opacity-40"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              <button disabled={page <= 1} onClick={() => setParam('page', String(page - 1))} className="btn-secondary py-1.5 px-2.5 disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
+              <button disabled={page >= data.total_pages} onClick={() => setParam('page', String(page + 1))} className="btn-secondary py-1.5 px-2.5 disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
             </div>
           </div>
         )}
       </div>
 
+      {/* ── Bulk action bar (floats at bottom when items selected) ── */}
+      {isAdmin && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl border border-slate-700">
+          <span className="text-sm font-semibold">{t('inventory.selected', { count: selectedIds.size })}</span>
+          <div className="w-px h-5 bg-slate-600" />
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-sm text-slate-400 hover:text-white transition-colors"
+          >
+            {t('inventory.deselectAll')}
+          </button>
+          <button
+            onClick={() => setBulkDeleteConfirm(true)}
+            className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            {t('inventory.deleteSelected')}
+          </button>
+        </div>
+      )}
+
+      {/* Single delete confirm */}
       <ConfirmDialog
         open={deleteId !== null}
         onClose={() => setDeleteId(null)}
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         title={t('common.delete')}
-        message="Are you sure you want to delete this product? This action cannot be undone and will remove all associated stock movements."
+        message={t('inventory.deleteSelectedWarning', { count: 1 })}
         loading={deleteMutation.isPending}
+      />
+
+      {/* Bulk delete confirm */}
+      <ConfirmDialog
+        open={bulkDeleteConfirm}
+        onClose={() => setBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        title={t('inventory.deleteSelectedTitle')}
+        message={t('inventory.deleteSelectedWarning', { count: selectedIds.size })}
+        confirmLabel={`${t('inventory.deleteSelected')} (${selectedIds.size})`}
+        loading={isBulkDeleting}
       />
     </div>
   )
