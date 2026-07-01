@@ -1,6 +1,3 @@
-import os
-import shutil
-import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -9,25 +6,10 @@ from ..models.product import Product
 from ..schemas.product import ProductCreate, ProductUpdate, ProductOut, ProductListOut
 from ..dependencies import get_current_user, require_admin
 from ..models.user import User
-from ..config import settings
+from ..services.storage import upload_image
 import math
 
 router = APIRouter(prefix="/api/products", tags=["products"])
-
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-
-
-def save_image(file: UploadFile) -> str:
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=400, detail="Invalid image type. Use JPEG, PNG, or WebP.")
-    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-    filename = f"{uuid.uuid4()}.{ext}"
-    media_path = os.path.join(settings.MEDIA_DIR, "products")
-    os.makedirs(media_path, exist_ok=True)
-    file_path = os.path.join(media_path, filename)
-    with open(file_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    return f"/media/products/{filename}"
 
 
 @router.get("", response_model=ProductListOut)
@@ -88,7 +70,7 @@ def create_product(
 ):
     image_url = None
     if image and image.filename:
-        image_url = save_image(image)
+        image_url = upload_image(image)
 
     product = Product(
         name=name,
