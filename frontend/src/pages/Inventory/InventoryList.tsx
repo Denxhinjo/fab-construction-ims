@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Plus, Search, Filter, Edit2, Trash2, Eye, Package,
   ChevronLeft, ChevronRight, AlertTriangle, ImageOff
@@ -19,6 +20,7 @@ export default function InventoryList() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { isAdmin } = useAuth()
   const qc = useQueryClient()
+  const { t } = useTranslation()
 
   const page = Number(searchParams.get('page') ?? 1)
   const search = searchParams.get('search') ?? ''
@@ -57,12 +59,12 @@ export default function InventoryList() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => productsApi.delete(id),
     onSuccess: () => {
-      toast.success('Product deleted')
+      toast.success(t('common.delete'))
       qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       setDeleteId(null)
     },
-    onError: () => toast.error('Failed to delete product'),
+    onError: () => toast.error(t('product.failedToSave')),
   })
 
   const setParam = useCallback((key: string, value: string) => {
@@ -80,14 +82,14 @@ export default function InventoryList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Inventory</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('inventory.title')}</h1>
           <p className="text-slate-500 text-sm">
-            {data?.total ?? 0} products total
+            {t('inventory.productsTotal', { count: data?.total ?? 0 })}
           </p>
         </div>
         <button onClick={() => navigate('/inventory/new')} className="btn-primary">
           <Plus className="w-4 h-4" />
-          Add Product
+          {t('inventory.addProduct')}
         </button>
       </div>
 
@@ -98,7 +100,7 @@ export default function InventoryList() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search products..."
+              placeholder={t('inventory.searchProducts')}
               value={search}
               onChange={(e) => setParam('search', e.target.value)}
               className="input-base pl-9"
@@ -110,7 +112,7 @@ export default function InventoryList() {
             className={`btn-secondary gap-2 ${filtersOpen ? 'bg-brand-50 border-brand-200 text-brand-700' : ''}`}
           >
             <Filter className="w-4 h-4" />
-            Filters
+            {t('inventory.filters')}
             {(categoryId || locationId || statusFilter || lowStock) && (
               <span className="w-5 h-5 rounded-full bg-brand-500 text-white text-xs flex items-center justify-center">
                 {[categoryId, locationId, statusFilter, lowStock].filter(Boolean).length}
@@ -126,7 +128,7 @@ export default function InventoryList() {
               onChange={(e) => setParam('category_id', e.target.value)}
               className="input-base"
             >
-              <option value="">All Categories</option>
+              <option value="">{t('inventory.allCategories')}</option>
               {categories?.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -136,7 +138,7 @@ export default function InventoryList() {
               onChange={(e) => setParam('location_id', e.target.value)}
               className="input-base"
             >
-              <option value="">All Locations</option>
+              <option value="">{t('inventory.allLocations')}</option>
               {locations?.map((l) => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
@@ -146,10 +148,10 @@ export default function InventoryList() {
               onChange={(e) => setParam('status', e.target.value)}
               className="input-base"
             >
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="discontinued">Discontinued</option>
+              <option value="">{t('inventory.allStatuses')}</option>
+              <option value="active">{t('common.active')}</option>
+              <option value="inactive">{t('common.inactive')}</option>
+              <option value="discontinued">{t('common.discontinued')}</option>
             </select>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -158,7 +160,7 @@ export default function InventoryList() {
                 onChange={(e) => setParam('low_stock', e.target.checked ? 'true' : '')}
                 className="w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
               />
-              <span className="text-sm text-slate-700 font-medium">Low stock only</span>
+              <span className="text-sm text-slate-700 font-medium">{t('inventory.lowStockOnly')}</span>
             </label>
           </div>
         )}
@@ -173,11 +175,11 @@ export default function InventoryList() {
         ) : products.length === 0 ? (
           <EmptyState
             icon={<Package className="w-8 h-8 text-slate-400" />}
-            title="No products found"
-            description="Try adjusting your search or filters, or add a new product."
+            title={t('inventory.noProducts')}
+            description={t('inventory.noProductsDesc')}
             action={
               <button onClick={() => navigate('/inventory/new')} className="btn-primary">
-                <Plus className="w-4 h-4" /> Add Product
+                <Plus className="w-4 h-4" /> {t('inventory.addProduct')}
               </button>
             }
           />
@@ -186,12 +188,12 @@ export default function InventoryList() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Product</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Category</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Quantity</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Location</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('inventory.product')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">{t('inventory.category')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('inventory.quantity')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">{t('inventory.location')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('inventory.status')}</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('inventory.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -263,14 +265,14 @@ export default function InventoryList() {
                         <button
                           onClick={() => navigate(`/inventory/${product.id}`)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                          title="View"
+                          title={t('common.view')}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => navigate(`/inventory/${product.id}/edit`)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                          title="Edit"
+                          title={t('common.edit')}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -278,7 +280,7 @@ export default function InventoryList() {
                           <button
                             onClick={() => setDeleteId(product.id)}
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                            title="Delete"
+                            title={t('common.delete')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -296,7 +298,7 @@ export default function InventoryList() {
         {data && data.total_pages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
             <p className="text-sm text-slate-500">
-              Page {data.page} of {data.total_pages} ({data.total} items)
+              {t('inventory.page', { current: data.page, total: data.total_pages, items: data.total })}
             </p>
             <div className="flex gap-2">
               <button
@@ -322,7 +324,7 @@ export default function InventoryList() {
         open={deleteId !== null}
         onClose={() => setDeleteId(null)}
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
-        title="Delete Product"
+        title={t('common.delete')}
         message="Are you sure you want to delete this product? This action cannot be undone and will remove all associated stock movements."
         loading={deleteMutation.isPending}
       />

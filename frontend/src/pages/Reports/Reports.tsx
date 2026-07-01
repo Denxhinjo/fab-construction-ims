@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { format, subDays } from 'date-fns'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -14,6 +15,7 @@ import { format as fmt } from 'date-fns'
 const COLORS = ['#F59E0B', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6', '#EC4899', '#6B7280', '#D97706']
 
 export default function Reports() {
+  const { t } = useTranslation()
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'))
 
@@ -58,12 +60,12 @@ export default function Reports() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Reports</h1>
-          <p className="text-slate-500 text-sm">Inventory analytics and stock movement history</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t('reports.title')}</h1>
+          <p className="text-slate-500 text-sm">{t('reports.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-base w-auto" />
-          <span className="text-slate-500 text-sm">to</span>
+          <span className="text-slate-500 text-sm">{t('reports.to')}</span>
           <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-base w-auto" />
         </div>
       </div>
@@ -71,10 +73,10 @@ export default function Reports() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Stock In', value: totalIn.toLocaleString(), color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Total Stock Out', value: totalOut.toLocaleString(), color: 'text-red-600', bg: 'bg-red-50' },
-          { label: 'Adjustments', value: totalAdj, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Low Stock Items', value: lowStockCount, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: t('reports.totalStockIn'), value: totalIn.toLocaleString(), color: 'text-green-600', bg: 'bg-green-50' },
+          { label: t('reports.totalStockOut'), value: totalOut.toLocaleString(), color: 'text-red-600', bg: 'bg-red-50' },
+          { label: t('reports.adjustments'), value: totalAdj, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: t('reports.lowStockItems'), value: lowStockCount, color: 'text-amber-600', bg: 'bg-amber-50' },
         ].map((s) => (
           <div key={s.label} className={`card p-4 ${s.bg}`}>
             <p className="text-xs text-slate-500 font-medium">{s.label}</p>
@@ -88,13 +90,13 @@ export default function Reports() {
         {/* Movement over time */}
         <div className="xl:col-span-2 card p-5">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">
-            Stock Movement — {format(new Date(dateFrom), 'MMM d')} to {format(new Date(dateTo), 'MMM d, yyyy')}
+            {t('reports.stockMovementChart')} — {format(new Date(dateFrom), 'MMM d')} {t('reports.to')} {format(new Date(dateTo), 'MMM d, yyyy')}
           </h2>
           {loadingMovements ? (
             <div className="flex items-center justify-center h-48"><Spinner /></div>
           ) : chartData.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-              No movement data for this period
+              {t('reports.noMovements')}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
@@ -120,9 +122,9 @@ export default function Reports() {
 
         {/* Category distribution */}
         <div className="card p-5">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">Products by Category</h2>
+          <h2 className="text-sm font-semibold text-slate-700 mb-4">{t('reports.productsByCategory')}</h2>
           {categoryData.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-slate-400 text-sm">No data</div>
+            <div className="flex items-center justify-center h-48 text-slate-400 text-sm">{t('reports.noData')}</div>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
@@ -143,19 +145,28 @@ export default function Reports() {
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="text-sm font-semibold text-slate-700">
-            Stock Movement History ({movementsData?.total ?? 0} records)
+            {t('reports.movementHistory')} ({t('reports.records', { count: movementsData?.total ?? 0 })})
           </h2>
         </div>
         {loadingMovements ? (
           <div className="flex items-center justify-center py-12"><Spinner size="lg" /></div>
         ) : (movementsData?.items.length ?? 0) === 0 ? (
-          <p className="text-center text-slate-400 py-10 text-sm">No movements in this period</p>
+          <p className="text-center text-slate-400 py-10 text-sm">{t('reports.noMovements')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
-                  {['Type', 'Product', 'Quantity', 'Previous', 'New', 'By', 'Date', 'Reason'].map(h => (
+                  {[
+                    t('reports.type'),
+                    t('reports.product'),
+                    t('reports.qty'),
+                    t('reports.previous'),
+                    t('reports.new'),
+                    t('reports.by'),
+                    t('reports.date'),
+                    t('reports.reason'),
+                  ].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>

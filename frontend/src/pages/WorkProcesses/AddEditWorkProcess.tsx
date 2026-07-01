@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { workProcessesApi, productsApi, locationsApi, usersApi } from '../../services/api'
@@ -28,6 +29,7 @@ export default function AddEditWorkProcess() {
   const isEdit = !!id
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { t } = useTranslation()
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -74,18 +76,18 @@ export default function AddEditWorkProcess() {
         ? workProcessesApi.update(Number(id), payload)
         : workProcessesApi.create(payload),
     onSuccess: () => {
-      toast.success(isEdit ? 'Work process updated!' : 'Work process created!')
+      toast.success(isEdit ? t('workProcesses.updated') : t('workProcesses.created'))
       qc.invalidateQueries({ queryKey: ['work-processes'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       navigate('/work-processes')
     },
     onError: (e: { response?: { data?: { detail?: string } } }) =>
-      toast.error(e?.response?.data?.detail ?? 'Failed to save'),
+      toast.error(e?.response?.data?.detail ?? t('workProcesses.failedToSave')),
   })
 
   const validate = () => {
     const e: Record<string, string> = {}
-    if (!form.title.trim()) e.title = 'Title is required'
+    if (!form.title.trim()) e.title = t('workProcesses.titleRequired')
     setErrors(e)
     return !Object.keys(e).length
   }
@@ -123,28 +125,28 @@ export default function AddEditWorkProcess() {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            {isEdit ? 'Edit Work Process' : 'New Work Process'}
+            {isEdit ? t('workProcesses.editTitle') : t('workProcesses.addTitle')}
           </h1>
-          <p className="text-slate-500 text-sm">Track construction tasks and inventory usage</p>
+          <p className="text-slate-500 text-sm">{t('workProcesses.subtitle')}</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="card p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">Task Information</h2>
-          <FormField label="Title" required error={errors.title}>
-            <input className="input-base" value={form.title} onChange={set('title')} placeholder="e.g. Steel Frame Erection - Floor 5-8" />
+          <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">{t('workProcesses.taskInfo')}</h2>
+          <FormField label={t('workProcesses.titleField')} required error={errors.title}>
+            <input className="input-base" value={form.title} onChange={set('title')} placeholder={t('workProcesses.titlePlaceholder')} />
           </FormField>
-          <FormField label="Description">
-            <textarea className="input-base min-h-24 resize-y" value={form.description} onChange={set('description')} placeholder="Detailed description of the work process..." />
+          <FormField label={t('workProcesses.description')}>
+            <textarea className="input-base min-h-24 resize-y" value={form.description} onChange={set('description')} placeholder={t('workProcesses.descriptionPlaceholder')} />
           </FormField>
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Status">
+            <FormField label={t('workProcesses.status')}>
               <select className="input-base" value={form.status} onChange={set('status')}>
                 {['Not Started', 'Started', 'In Process', 'Done'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </FormField>
-            <FormField label="Priority">
+            <FormField label={t('workProcesses.priority')}>
               <select className="input-base" value={form.priority} onChange={set('priority')}>
                 {['Low', 'Medium', 'High', 'Critical'].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -153,53 +155,53 @@ export default function AddEditWorkProcess() {
         </div>
 
         <div className="card p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">Assignment</h2>
+          <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">{t('workProcesses.assignment')}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField label="Assigned To">
+            <FormField label={t('workProcesses.assignedTo')}>
               <select className="input-base" value={form.assigned_user_id} onChange={set('assigned_user_id')}>
-                <option value="">Unassigned</option>
+                <option value="">{t('workProcesses.unassigned')}</option>
                 {users?.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
               </select>
             </FormField>
-            <FormField label="Location">
+            <FormField label={t('workProcesses.location')}>
               <select className="input-base" value={form.location_id} onChange={set('location_id')}>
-                <option value="">No location</option>
+                <option value="">{t('workProcesses.noLocation')}</option>
                 {locations?.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </FormField>
           </div>
-          <FormField label="Related Product (optional)">
+          <FormField label={t('workProcesses.relatedProduct')}>
             <select className="input-base" value={form.product_id} onChange={set('product_id')}>
-              <option value="">No related product</option>
+              <option value="">{t('workProcesses.noProduct')}</option>
               {productsData?.items?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </FormField>
         </div>
 
         <div className="card p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">Timeline</h2>
+          <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">{t('workProcesses.timeline')}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <FormField label="Start Date">
+            <FormField label={t('workProcesses.startDate')}>
               <input type="date" className="input-base" value={form.start_date} onChange={set('start_date')} />
             </FormField>
-            <FormField label="Due Date">
+            <FormField label={t('workProcesses.dueDate')}>
               <input type="date" className="input-base" value={form.due_date} onChange={set('due_date')} />
             </FormField>
-            <FormField label="Completion Date">
+            <FormField label={t('workProcesses.completionDate')}>
               <input type="date" className="input-base" value={form.completion_date} onChange={set('completion_date')} />
             </FormField>
           </div>
-          <FormField label="Notes">
-            <textarea className="input-base min-h-16 resize-y" value={form.notes} onChange={set('notes')} placeholder="Any additional notes..." />
+          <FormField label={t('workProcesses.notes')}>
+            <textarea className="input-base min-h-16 resize-y" value={form.notes} onChange={set('notes')} placeholder={t('workProcesses.notesPlaceholder')} />
           </FormField>
         </div>
 
         <div className="flex gap-3">
           <button type="submit" disabled={mutation.isPending} className="btn-primary">
             {mutation.isPending ? <Spinner size="sm" /> : null}
-            {mutation.isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Task'}
+            {mutation.isPending ? t('workProcesses.saving') : isEdit ? t('workProcesses.saveChanges') : t('workProcesses.createTask')}
           </button>
-          <button type="button" onClick={() => navigate(-1)} className="btn-secondary">Cancel</button>
+          <button type="button" onClick={() => navigate(-1)} className="btn-secondary">{t('workProcesses.cancel')}</button>
         </div>
       </form>
     </div>

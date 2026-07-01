@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import {
   ArrowLeft, Edit2, Plus, ImageOff, Package, MapPin,
@@ -20,6 +21,7 @@ export default function ProductDetail() {
   const navigate = useNavigate()
   const { } = useAuth()
   const qc = useQueryClient()
+  const { t } = useTranslation()
   const [movementModal, setMovementModal] = useState(false)
 
   const { data: product, isLoading } = useQuery<Product>({
@@ -45,7 +47,7 @@ export default function ProductDetail() {
   const movementMutation = useMutation({
     mutationFn: (data: StockMovementCreate) => stockMovementsApi.create(data),
     onSuccess: () => {
-      toast.success('Stock movement recorded')
+      toast.success(t('productDetail.recordSuccess'))
       qc.invalidateQueries({ queryKey: ['product', id] })
       qc.invalidateQueries({ queryKey: ['movements', id] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
@@ -53,12 +55,12 @@ export default function ProductDetail() {
       setMovForm({ ...movForm, quantity: 1, reason: '', notes: '' })
     },
     onError: (err: { response?: { data?: { detail?: string } } }) => {
-      toast.error(err?.response?.data?.detail ?? 'Failed to record movement')
+      toast.error(err?.response?.data?.detail ?? t('productDetail.movementFailed'))
     },
   })
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
-  if (!product) return <p className="text-slate-500 text-center py-16">Product not found.</p>
+  if (!product) return <p className="text-slate-500 text-center py-16">{t('productDetail.notFound')}</p>
 
   const movements = movementsData?.items ?? []
 
@@ -77,7 +79,7 @@ export default function ProductDetail() {
               <StatusBadge status={product.status} />
               {product.is_low_stock && (
                 <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Low Stock
+                  <AlertTriangle className="w-3.5 h-3.5" /> {t('productDetail.lowStock')}
                 </span>
               )}
             </div>
@@ -85,10 +87,10 @@ export default function ProductDetail() {
         </div>
         <div className="flex gap-2 flex-shrink-0">
           <button onClick={() => setMovementModal(true)} className="btn-primary">
-            <Plus className="w-4 h-4" /> Stock Movement
+            <Plus className="w-4 h-4" /> {t('productDetail.recordMovement')}
           </button>
           <button onClick={() => navigate(`/inventory/${id}/edit`)} className="btn-secondary">
-            <Edit2 className="w-4 h-4" /> Edit
+            <Edit2 className="w-4 h-4" /> {t('common.edit')}
           </button>
         </div>
       </div>
@@ -102,21 +104,21 @@ export default function ProductDetail() {
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50">
                 <ImageOff className="w-12 h-12 text-slate-300" />
-                <p className="text-xs text-slate-400 mt-2">No image</p>
+                <p className="text-xs text-slate-400 mt-2">{t('productDetail.noImage')}</p>
               </div>
             )}
           </div>
 
           {/* Stock level card */}
           <div className={`card p-5 ${product.is_low_stock ? 'border-red-200 bg-red-50' : ''}`}>
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">Current Stock</p>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">{t('productDetail.currentStock')}</p>
             <p className={`text-4xl font-bold ${product.is_low_stock ? 'text-red-600' : 'text-slate-800'}`}>
               {product.quantity}
             </p>
             <p className="text-sm text-slate-500 mt-0.5">{product.unit}</p>
             <div className="mt-3 pt-3 border-t border-slate-200">
               <div className="flex justify-between text-xs text-slate-500">
-                <span>Min level: {product.min_stock_level} {product.unit}</span>
+                <span>{t('productDetail.minLevel')} {product.min_stock_level} {product.unit}</span>
                 {product.unit_price && <span>${product.unit_price.toFixed(2)}/unit</span>}
               </div>
               {product.min_stock_level > 0 && (
@@ -138,13 +140,13 @@ export default function ProductDetail() {
         {/* Details */}
         <div className="lg:col-span-2 space-y-4">
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-700 mb-4">Product Details</h2>
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">{t('productDetail.details')}</h2>
             <div className="grid grid-cols-2 gap-y-4 gap-x-6">
               {product.category && (
                 <div className="flex items-start gap-2.5">
                   <Tag className="w-4 h-4 text-slate-400 mt-0.5" />
                   <div>
-                    <p className="text-xs text-slate-500">Category</p>
+                    <p className="text-xs text-slate-500">{t('productDetail.category')}</p>
                     <p className="text-sm font-medium text-slate-700">{product.category.name}</p>
                   </div>
                 </div>
@@ -153,7 +155,7 @@ export default function ProductDetail() {
                 <div className="flex items-start gap-2.5">
                   <MapPin className="w-4 h-4 text-slate-400 mt-0.5" />
                   <div>
-                    <p className="text-xs text-slate-500">Location</p>
+                    <p className="text-xs text-slate-500">{t('productDetail.location')}</p>
                     <p className="text-sm font-medium text-slate-700">{product.location.name}</p>
                     {product.location.city && <p className="text-xs text-slate-400">{product.location.city}</p>}
                   </div>
@@ -163,7 +165,7 @@ export default function ProductDetail() {
                 <div className="flex items-start gap-2.5">
                   <Truck className="w-4 h-4 text-slate-400 mt-0.5" />
                   <div>
-                    <p className="text-xs text-slate-500">Supplier</p>
+                    <p className="text-xs text-slate-500">{t('productDetail.supplier')}</p>
                     <p className="text-sm font-medium text-slate-700">{product.supplier.name}</p>
                   </div>
                 </div>
@@ -171,14 +173,14 @@ export default function ProductDetail() {
               <div className="flex items-start gap-2.5">
                 <Package className="w-4 h-4 text-slate-400 mt-0.5" />
                 <div>
-                  <p className="text-xs text-slate-500">Unit</p>
+                  <p className="text-xs text-slate-500">{t('productDetail.unit')}</p>
                   <p className="text-sm font-medium text-slate-700">{product.unit}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2.5">
                 <Settings2 className="w-4 h-4 text-slate-400 mt-0.5" />
                 <div>
-                  <p className="text-xs text-slate-500">Created</p>
+                  <p className="text-xs text-slate-500">{t('productDetail.created')}</p>
                   <p className="text-sm font-medium text-slate-700">
                     {format(new Date(product.created_at), 'MMM d, yyyy')}
                   </p>
@@ -187,7 +189,7 @@ export default function ProductDetail() {
               <div className="flex items-start gap-2.5">
                 <Settings2 className="w-4 h-4 text-slate-400 mt-0.5" />
                 <div>
-                  <p className="text-xs text-slate-500">Last Updated</p>
+                  <p className="text-xs text-slate-500">{t('productDetail.lastUpdated')}</p>
                   <p className="text-sm font-medium text-slate-700">
                     {format(new Date(product.updated_at), 'MMM d, yyyy')}
                   </p>
@@ -196,13 +198,13 @@ export default function ProductDetail() {
             </div>
             {product.description && (
               <div className="mt-4 pt-4 border-t border-slate-100">
-                <p className="text-xs text-slate-500 mb-1">Description</p>
+                <p className="text-xs text-slate-500 mb-1">{t('productDetail.description')}</p>
                 <p className="text-sm text-slate-600">{product.description}</p>
               </div>
             )}
             {product.notes && (
               <div className="mt-4 pt-4 border-t border-slate-100">
-                <p className="text-xs text-slate-500 mb-1">Notes</p>
+                <p className="text-xs text-slate-500 mb-1">{t('productDetail.notes')}</p>
                 <p className="text-sm text-slate-600">{product.notes}</p>
               </div>
             )}
@@ -211,13 +213,13 @@ export default function ProductDetail() {
           {/* Movement history */}
           <div className="card overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-              <h2 className="text-sm font-semibold text-slate-700">Stock Movement History</h2>
+              <h2 className="text-sm font-semibold text-slate-700">{t('productDetail.stockHistory')}</h2>
               <button onClick={() => setMovementModal(true)} className="btn-primary py-1.5 text-xs">
-                <Plus className="w-3.5 h-3.5" /> Record
+                <Plus className="w-3.5 h-3.5" /> {t('productDetail.recordMovement')}
               </button>
             </div>
             {movements.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-8">No movements recorded yet</p>
+              <p className="text-sm text-slate-400 text-center py-8">{t('productDetail.noMovements')}</p>
             ) : (
               <div className="divide-y divide-slate-50">
                 {movements.map((m) => (
@@ -261,20 +263,20 @@ export default function ProductDetail() {
       </div>
 
       {/* Stock Movement Modal */}
-      <Modal open={movementModal} onClose={() => setMovementModal(false)} title="Record Stock Movement" size="md">
+      <Modal open={movementModal} onClose={() => setMovementModal(false)} title={t('productDetail.stockMovement')} size="md">
         <div className="space-y-4">
-          <FormField label="Movement Type" required>
+          <FormField label={t('productDetail.movementType')} required>
             <select
               className="input-base"
               value={movForm.movement_type}
               onChange={(e) => setMovForm({ ...movForm, movement_type: e.target.value as never })}
             >
-              <option value="Stock In">Stock In — Add to inventory</option>
-              <option value="Stock Out">Stock Out — Remove from inventory</option>
-              <option value="Adjustment">Adjustment — Set exact quantity</option>
+              <option value="Stock In">{t('productDetail.stockIn')}</option>
+              <option value="Stock Out">{t('productDetail.stockOut')}</option>
+              <option value="Adjustment">{t('productDetail.adjustment')}</option>
             </select>
           </FormField>
-          <FormField label={movForm.movement_type === 'Adjustment' ? 'New Quantity' : 'Quantity'} required>
+          <FormField label={movForm.movement_type === 'Adjustment' ? t('productDetail.newQuantity') : t('inventory.quantity')} required>
             <input
               type="number"
               min="0.01"
@@ -283,17 +285,17 @@ export default function ProductDetail() {
               value={movForm.quantity}
               onChange={(e) => setMovForm({ ...movForm, quantity: Number(e.target.value) })}
             />
-            <p className="text-xs text-slate-500 mt-1">Current: {product.quantity} {product.unit}</p>
+            <p className="text-xs text-slate-500 mt-1">{t('productDetail.currentQty')} {product.quantity} {product.unit}</p>
           </FormField>
-          <FormField label="Reason">
+          <FormField label={t('productDetail.reason')}>
             <input
               className="input-base"
               value={movForm.reason}
               onChange={(e) => setMovForm({ ...movForm, reason: e.target.value })}
-              placeholder="e.g. Weekly restocking, Site delivery..."
+              placeholder={t('productDetail.reasonPlaceholder')}
             />
           </FormField>
-          <FormField label="Date" required>
+          <FormField label={t('productDetail.date')} required>
             <input
               type="date"
               className="input-base"
@@ -301,12 +303,12 @@ export default function ProductDetail() {
               onChange={(e) => setMovForm({ ...movForm, movement_date: e.target.value })}
             />
           </FormField>
-          <FormField label="Notes">
+          <FormField label={t('productDetail.additionalNotes')}>
             <textarea
               className="input-base min-h-16 resize-y"
               value={movForm.notes}
               onChange={(e) => setMovForm({ ...movForm, notes: e.target.value })}
-              placeholder="Optional notes..."
+              placeholder={t('productDetail.optionalNotes')}
             />
           </FormField>
           <div className="flex gap-3 pt-2">
@@ -316,9 +318,9 @@ export default function ProductDetail() {
               className="flex-1 btn-primary justify-center"
             >
               {movementMutation.isPending ? <Spinner size="sm" /> : null}
-              {movementMutation.isPending ? 'Saving...' : 'Record Movement'}
+              {movementMutation.isPending ? t('product.saving') : t('productDetail.record')}
             </button>
-            <button onClick={() => setMovementModal(false)} className="btn-secondary">Cancel</button>
+            <button onClick={() => setMovementModal(false)} className="btn-secondary">{t('product.cancel')}</button>
           </div>
         </div>
       </Modal>

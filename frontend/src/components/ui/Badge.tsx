@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type Variant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple' | 'gray'
 
@@ -42,29 +43,31 @@ export default function Badge({ variant = 'default', children, className = '', d
 
 // Helpers for common domain statuses
 export function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation()
   const map: Record<string, { label: string; variant: Variant }> = {
-    active:        { label: 'Active',        variant: 'success' },
-    inactive:      { label: 'Inactive',      variant: 'gray'    },
-    discontinued:  { label: 'Discontinued',  variant: 'danger'  },
-    'Not Started': { label: 'Not Started',   variant: 'gray'    },
-    Started:       { label: 'Started',       variant: 'info'    },
-    'In Process':  { label: 'In Process',    variant: 'warning' },
-    Done:          { label: 'Done',          variant: 'success' },
-    'Stock In':    { label: 'Stock In',      variant: 'success' },
-    'Stock Out':   { label: 'Stock Out',     variant: 'danger'  },
-    Adjustment:    { label: 'Adjustment',    variant: 'info'    },
+    active:        { label: t('status.active'),        variant: 'success' },
+    inactive:      { label: t('status.inactive'),      variant: 'gray'    },
+    discontinued:  { label: t('status.discontinued'),  variant: 'danger'  },
+    'Not Started': { label: t('status.notStarted'),    variant: 'gray'    },
+    Started:       { label: t('status.started'),       variant: 'info'    },
+    'In Process':  { label: t('status.inProcess'),     variant: 'warning' },
+    Done:          { label: t('status.done'),          variant: 'success' },
+    'Stock In':    { label: t('status.stockIn'),       variant: 'success' },
+    'Stock Out':   { label: t('status.stockOut'),      variant: 'danger'  },
+    Adjustment:    { label: t('status.adjustment'),    variant: 'info'    },
   }
   const cfg = map[status] ?? { label: status, variant: 'gray' as Variant }
   return <Badge variant={cfg.variant} dot>{cfg.label}</Badge>
 }
 
 export function PriorityBadge({ priority }: { priority: string }) {
-  const map: Record<string, { variant: Variant }> = {
-    Low:      { variant: 'gray'    },
-    Medium:   { variant: 'info'    },
-    High:     { variant: 'warning' },
-    Critical: { variant: 'danger'  },
+  const { t } = useTranslation()
+  const map: Record<string, { label: string; variant: Variant }> = {
+    Low:      { label: t('priority.low'),      variant: 'gray'    },
+    Medium:   { label: t('priority.medium'),   variant: 'info'    },
+    High:     { label: t('priority.high'),     variant: 'warning' },
+    Critical: { label: t('priority.critical'), variant: 'danger'  },
   }
-  const cfg = map[priority] ?? { variant: 'gray' as Variant }
-  return <Badge variant={cfg.variant}>{priority}</Badge>
+  const cfg = map[priority] ?? { label: priority, variant: 'gray' as Variant }
+  return <Badge variant={cfg.variant}>{cfg.label}</Badge>
 }
