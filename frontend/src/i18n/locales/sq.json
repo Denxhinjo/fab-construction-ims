@@ -66,7 +66,14 @@
     "actions": "Veprimet",
     "noProducts": "Asnjë produkt nuk u gjet",
     "noProductsDesc": "Provoni të ndryshoni filtrat ose shtoni një produkt të ri.",
-    "page": "Faqja {{current}} nga {{total}} ({{items}} artikuj)"
+    "page": "Faqja {{current}} nga {{total}} ({{items}} artikuj)",
+    "selectAll": "Zgjidh të gjitha",
+    "deselectAll": "Hiq zgjedhjen",
+    "selected": "{{count}} të zgjedhur",
+    "deleteSelected": "Fshi të zgjedhurit",
+    "deleteSelectedTitle": "Fshi Produktet e Zgjedhura",
+    "deleteSelectedWarning": "A jeni i sigurt që dëshironi të fshini {{count}} produkte? Kjo veprim nuk mund të kthehet prapa.",
+    "deletedSelected": "{{count}} produkte u fshien me sukses"
   },
   "product": {
     "addTitle": "Shto Produkt",
