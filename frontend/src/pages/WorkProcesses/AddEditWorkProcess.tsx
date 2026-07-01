@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Upload, X, Camera } from 'lucide-react'
 import { format } from 'date-fns'
-import { workProcessesApi, productsApi, locationsApi, usersApi } from '../../services/api'
+import { workProcessesApi, productsApi, locationsApi, usersApi, mediaUrl } from '../../services/api'
 import type { WorkProcess, ProductListOut, Location, User } from '../../types'
 import FormField from '../../components/ui/FormField'
 import Spinner from '../../components/ui/Spinner'
@@ -30,8 +30,12 @@ export default function AddEditWorkProcess() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { t } = useTranslation()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [preview, setPreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const { data: wp, isLoading } = useQuery<WorkProcess>({
     queryKey: ['work-process', id],
@@ -67,8 +71,23 @@ export default function AddEditWorkProcess() {
         completion_date: wp.completion_date ? format(new Date(wp.completion_date), 'yyyy-MM-dd') : '',
         notes: wp.notes ?? '',
       })
+      if (wp.image_url) setPreview(mediaUrl(wp.image_url) ?? null)
     }
   }, [wp, isEdit])
+
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('upload_preset', 'fab-ims-products')
+    fd.append('folder', 'fab-ims/work-processes')
+    const res = await fetch('https://api.cloudinary.com/v1_1/dgtqh3jr/image/upload', {
+      method: 'POST',
+      body: fd,
+    })
+    const data = await res.json()
+    if (!res.ok || !data.secure_url) throw new Error(data?.error?.message ?? t('workProcesses.imageUploadFailed'))
+    return data.secure_url
+  }
 
   const mutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
@@ -92,9 +111,35 @@ export default function AddEditWorkProcess() {
     return !Object.keys(e).length
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) { toast.error('Image must be under 10MB'); return }
+    setImageFile(file)
+    setPreview(URL.createObjectURL(file))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
+
+    let imageUrl: string | undefined
+    if (imageFile) {
+      try {
+        setUploadingImage(true)
+        toast.loading(t('workProcesses.uploadingImage'), { id: 'wp-img' })
+        imageUrl = await uploadToCloudinary(imageFile)
+        toast.dismiss('wp-img')
+      } catch (err) {
+        toast.dismiss('wp-img')
+        toast.error(err instanceof Error ? err.message : t('workProcesses.imageUploadFailed'))
+        setUploadingImage(false)
+        return
+      } finally {
+        setUploadingImage(false)
+      }
+    }
+
     const payload: Record<string, unknown> = {
       title: form.title,
       description: form.description || undefined,
@@ -108,6 +153,8 @@ export default function AddEditWorkProcess() {
       due_date: form.due_date || null,
       completion_date: form.completion_date || null,
     }
+    if (imageUrl) payload.image_url = imageUrl
+
     mutation.mutate(payload)
   }
 
@@ -132,6 +179,7 @@ export default function AddEditWorkProcess() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Task Info */}
         <div className="card p-6 space-y-4">
           <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">{t('workProcesses.taskInfo')}</h2>
           <FormField label={t('workProcesses.titleField')} required error={errors.title}>
@@ -143,17 +191,51 @@ export default function AddEditWorkProcess() {
           <div className="grid grid-cols-2 gap-4">
             <FormField label={t('workProcesses.status')}>
               <select className="input-base" value={form.status} onChange={set('status')}>
-                {['Not Started', 'Started', 'In Process', 'Done'].map(s => <option key={s} value={s}>{s}</option>)}
+                {['Not Started', 'Started', 'In Process', 'Done'].map(s => <option key={s} value={s}>{t(`status.${s === 'Not Started' ? 'notStarted' : s === 'In Process' ? 'inProcess' : s.toLowerCase()}`)}</option>)}
               </select>
             </FormField>
             <FormField label={t('workProcesses.priority')}>
               <select className="input-base" value={form.priority} onChange={set('priority')}>
-                {['Low', 'Medium', 'High', 'Critical'].map(p => <option key={p} value={p}>{p}</option>)}
+                {['Low', 'Medium', 'High', 'Critical'].map(p => <option key={p} value={p}>{t(`priority.${p.toLowerCase()}`)}</option>)}
               </select>
             </FormField>
           </div>
         </div>
 
+        {/* Image Upload */}
+        <div className="card p-6">
+          <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3 mb-4">{t('workProcesses.image')}</h2>
+          <div
+            className="relative rounded-xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center cursor-pointer hover:border-brand-400 transition-colors group"
+            style={{ minHeight: preview ? 'auto' : '140px' }}
+            onClick={() => fileRef.current?.click()}
+          >
+            {preview ? (
+              <>
+                <img src={preview} alt="preview" className="w-full max-h-64 object-cover rounded-xl" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                  <Camera className="w-8 h-8 text-white" />
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setPreview(null); setImageFile(null) }}
+                  className="absolute top-2 right-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 z-10"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <div className="text-center p-6">
+                <Upload className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs text-slate-500 font-medium">{t('workProcesses.uploadImage')}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{t('workProcesses.uploadHint')}</p>
+              </div>
+            )}
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+        </div>
+
+        {/* Assignment */}
         <div className="card p-6 space-y-4">
           <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">{t('workProcesses.assignment')}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -178,6 +260,7 @@ export default function AddEditWorkProcess() {
           </FormField>
         </div>
 
+        {/* Timeline */}
         <div className="card p-6 space-y-4">
           <h2 className="text-sm font-semibold text-slate-700 border-b border-slate-100 pb-3">{t('workProcesses.timeline')}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -197,9 +280,9 @@ export default function AddEditWorkProcess() {
         </div>
 
         <div className="flex gap-3">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? <Spinner size="sm" /> : null}
-            {mutation.isPending ? t('workProcesses.saving') : isEdit ? t('workProcesses.saveChanges') : t('workProcesses.createTask')}
+          <button type="submit" disabled={mutation.isPending || uploadingImage} className="btn-primary">
+            {(mutation.isPending || uploadingImage) ? <Spinner size="sm" /> : null}
+            {uploadingImage ? t('workProcesses.uploadingImage') : mutation.isPending ? t('workProcesses.saving') : isEdit ? t('workProcesses.saveChanges') : t('workProcesses.createTask')}
           </button>
           <button type="button" onClick={() => navigate(-1)} className="btn-secondary">{t('workProcesses.cancel')}</button>
         </div>

@@ -168,6 +168,7 @@ export interface WorkProcess {
   due_date?: string
   completion_date?: string
   notes?: string
+  image_url?: string
   product?: { id: number; name: string; sku?: string; quantity: number; unit: string }
   assigned_user?: { id: number; full_name: string; email: string; role: string }
   location?: { id: number; name: string; city?: string }

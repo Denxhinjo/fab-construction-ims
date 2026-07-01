@@ -230,7 +230,13 @@
     "deleteWarning": "Are you sure you want to delete this work process? This cannot be undone.",
     "failedToSave": "Failed to save",
     "due": "Due:",
-    "dueOverdue": "Overdue:"
+    "dueOverdue": "Overdue:",
+    "image": "Process Image",
+    "uploadImage": "Click to upload image",
+    "uploadHint": "JPEG, PNG, WebP up to 10MB",
+    "uploadingImage": "Uploading image...",
+    "imageUploadFailed": "Image upload failed",
+    "viewImage": "View image"
   },
   "users": {
     "title": "User Management",

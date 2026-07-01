@@ -19,6 +19,7 @@ class WorkProcess(Base):
     due_date = Column(Date, nullable=True)
     completion_date = Column(Date, nullable=True)
     notes = Column(Text, nullable=True)
+    image_url = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
