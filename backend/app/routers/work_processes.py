@@ -5,7 +5,7 @@ import math
 from ..database import get_db
 from ..models.work_process import WorkProcess
 from ..schemas.work_process import WorkProcessCreate, WorkProcessUpdate, WorkProcessOut, WorkProcessListOut
-from ..dependencies import get_current_user
+from ..dependencies import get_current_user, require_admin
 from ..models.user import User
 
 router = APIRouter(prefix="/api/work-processes", tags=["work-processes"])
@@ -93,7 +93,7 @@ def update_work_process(
 def delete_work_process(
     wp_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     wp = db.query(WorkProcess).filter(WorkProcess.id == wp_id).first()
     if not wp:

@@ -93,19 +93,21 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <p className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">{t('login.demoCredentials')}</p>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500">Admin:</span>
-                  <span className="font-mono text-slate-700">admin / Admin@123</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500">User:</span>
-                  <span className="font-mono text-slate-700">jsmith / User@123</span>
+            {import.meta.env.DEV && (
+              <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <p className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">{t('login.demoCredentials')}</p>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Admin:</span>
+                    <span className="font-mono text-slate-700">admin / Admin@123</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">User:</span>
+                    <span className="font-mono text-slate-700">jsmith / User@123</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
         <p className="text-center text-slate-500 text-xs mt-6">{t('login.copyright')}</p>

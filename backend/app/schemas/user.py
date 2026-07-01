@@ -17,8 +17,8 @@ class UserCreate(UserBase):
     @field_validator("password")
     @classmethod
     def password_strength(cls, v: str) -> str:
-        if len(v) < 6:
-            raise ValueError("Password must be at least 6 characters")
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
         return v
 
     @field_validator("role")
