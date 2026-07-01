@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+from collections import defaultdict
 from jose import jwt
 from passlib.context import CryptContext
 from ..database import get_db
@@ -13,6 +14,23 @@ from ..dependencies import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# In-memory brute-force guard: {ip: [timestamp, ...]}
+_login_attempts: dict = defaultdict(list)
+_MAX_ATTEMPTS = 10
+_WINDOW_SECONDS = 60
+
+
+def _check_rate_limit(ip: str) -> None:
+    now = datetime.utcnow()
+    cutoff = now - timedelta(seconds=_WINDOW_SECONDS)
+    _login_attempts[ip] = [t for t in _login_attempts[ip] if t > cutoff]
+    if len(_login_attempts[ip]) >= _MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many login attempts. Please wait {_WINDOW_SECONDS} seconds.",
+        )
+    _login_attempts[ip].append(now)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -31,9 +49,12 @@ def create_access_token(user_id: int) -> str:
 
 @router.post("/login", response_model=Token)
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
+    ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(ip)
     user = db.query(User).filter(
         (User.email == form_data.username) | (User.username == form_data.username)
     ).first()
@@ -70,8 +91,8 @@ def change_password(
     new_password = payload.get("new_password", "")
     if not verify_password(old_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
     current_user.hashed_password = hash_password(new_password)
     db.commit()
     return {"message": "Password changed successfully"}

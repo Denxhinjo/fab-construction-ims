@@ -114,6 +114,8 @@ export default function AddEditWorkProcess() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowed.includes(file.type)) { toast.error('Only JPEG, PNG, WebP or GIF images allowed'); return }
     if (file.size > 10 * 1024 * 1024) { toast.error('Image must be under 10MB'); return }
     setImageFile(file)
     setPreview(URL.createObjectURL(file))
