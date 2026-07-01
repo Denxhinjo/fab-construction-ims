@@ -104,7 +104,9 @@ export default function AddEditProduct() {
       if (typeof detail === 'string') {
         toast.error(detail)
       } else if (Array.isArray(detail)) {
-        const msg = detail.map((d: { msg?: string }) => d.msg ?? 'Validation error').join(', ')
+        const msg = detail.map((d: { msg?: string; loc?: string[] }) =>
+          `${d.loc?.slice(-1)[0] ?? 'field'}: ${d.msg ?? 'error'}`
+        ).join(', ')
         toast.error(`Validation: ${msg}`)
       } else {
         toast.error('Failed to save product')
