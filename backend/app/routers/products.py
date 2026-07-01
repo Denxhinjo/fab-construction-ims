@@ -1,12 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from ..database import get_db
 from ..models.product import Product
-from ..schemas.product import ProductCreate, ProductUpdate, ProductOut, ProductListOut
+from ..schemas.product import ProductOut, ProductListOut
 from ..dependencies import get_current_user, require_admin
 from ..models.user import User
-from ..services.storage import upload_image
 import math
 
 router = APIRouter(prefix="/api/products", tags=["products"])
@@ -64,28 +63,15 @@ def create_product(
     supplier_id: Optional[int] = Form(None),
     product_status: str = Form("active"),
     notes: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
+    image_url: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    image_url = None
-    if image and image.filename:
-        image_url = upload_image(image)
-
     product = Product(
-        name=name,
-        sku=sku,
-        category_id=category_id,
-        description=description,
-        quantity=quantity,
-        unit=unit,
-        min_stock_level=min_stock_level,
-        unit_price=unit_price,
-        location_id=location_id,
-        supplier_id=supplier_id,
-        status=product_status,
-        notes=notes,
-        image_url=image_url,
+        name=name, sku=sku, category_id=category_id, description=description,
+        quantity=quantity, unit=unit, min_stock_level=min_stock_level,
+        unit_price=unit_price, location_id=location_id, supplier_id=supplier_id,
+        status=product_status, notes=notes, image_url=image_url,
     )
     db.add(product)
     db.commit()
@@ -120,7 +106,7 @@ def update_product(
     supplier_id: Optional[int] = Form(None),
     product_status: Optional[str] = Form(None),
     notes: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
+    image_url: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -128,8 +114,8 @@ def update_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    if image and image.filename:
-        product.image_url = save_image(image)
+    if image_url:
+        product.image_url = image_url
 
     fields = {
         "name": name, "sku": sku, "category_id": category_id,

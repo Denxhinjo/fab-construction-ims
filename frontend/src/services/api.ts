@@ -104,10 +104,8 @@ export const suppliersApi = {
 export const productsApi = {
   list: (params?: Record<string, unknown>) => api.get('/products', { params }),
   get: (id: number) => api.get(`/products/${id}`),
-  create: (data: FormData) =>
-    api.post('/products', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  update: (id: number, data: FormData) =>
-    api.put(`/products/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  create: (data: FormData) => api.post('/products', data),
+  update: (id: number, data: FormData) => api.put(`/products/${id}`, data),
   delete: (id: number) => api.delete(`/products/${id}`),
 }
 

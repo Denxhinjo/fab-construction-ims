@@ -16,7 +16,21 @@ export default function AddEditProduct() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('upload_preset', 'fab-ims-products')
+    const res = await fetch('https://api.cloudinary.com/v1_1/dgtqh3jr/image/upload', {
+      method: 'POST',
+      body: fd,
+    })
+    const data = await res.json()
+    if (!data.secure_url) throw new Error('Cloudinary upload failed')
+    return data.secure_url
+  }
 
   const [form, setForm] = useState({
     name: '',
@@ -95,12 +109,22 @@ export default function AddEditProduct() {
     return Object.keys(e).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
     const fd = new FormData()
     Object.entries(form).forEach(([k, v]) => { if (v !== '') fd.append(k, v) })
-    if (imageFile) fd.append('image', imageFile)
+    if (imageFile) {
+      try {
+        setUploadingImage(true)
+        const url = await uploadToCloudinary(imageFile)
+        fd.append('image_url', url)
+      } catch {
+        toast.error('Image upload failed. Product will be saved without image.')
+      } finally {
+        setUploadingImage(false)
+      }
+    }
     mutation.mutate(fd)
   }
 
