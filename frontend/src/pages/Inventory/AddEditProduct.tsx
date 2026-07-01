@@ -99,8 +99,16 @@ export default function AddEditProduct() {
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       navigate(`/inventory/${res.data.id}`)
     },
-    onError: (err: { response?: { data?: { detail?: string } } }) => {
-      toast.error(err?.response?.data?.detail ?? 'Failed to save product')
+    onError: (err: { response?: { data?: { detail?: unknown } } }) => {
+      const detail = err?.response?.data?.detail
+      if (typeof detail === 'string') {
+        toast.error(detail)
+      } else if (Array.isArray(detail)) {
+        const msg = detail.map((d: { msg?: string }) => d.msg ?? 'Validation error').join(', ')
+        toast.error(`Validation: ${msg}`)
+      } else {
+        toast.error('Failed to save product')
+      }
     },
   })
 

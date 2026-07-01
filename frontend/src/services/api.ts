@@ -13,6 +13,9 @@ const api = axios.create({
 // Prefix media file paths with the backend origin for production
 export function mediaUrl(path: string | null | undefined): string | undefined {
   if (!path) return undefined
+  // Cloudinary and other absolute URLs — return as-is
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  // Relative paths (legacy local media) — prefix with backend origin
   return `${API_ORIGIN}${path}`
 }
 
