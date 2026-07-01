@@ -23,12 +23,16 @@ export default function AddEditProduct() {
     const fd = new FormData()
     fd.append('file', file)
     fd.append('upload_preset', 'fab-ims-products')
+    fd.append('folder', 'fab-ims/products')
     const res = await fetch('https://api.cloudinary.com/v1_1/dgtqh3jr/image/upload', {
       method: 'POST',
       body: fd,
     })
     const data = await res.json()
-    if (!data.secure_url) throw new Error('Cloudinary upload failed')
+    if (!res.ok || !data.secure_url) {
+      console.error('Cloudinary error:', data)
+      throw new Error(data?.error?.message ?? 'Image upload failed')
+    }
     return data.secure_url
   }
 
@@ -117,10 +121,15 @@ export default function AddEditProduct() {
     if (imageFile) {
       try {
         setUploadingImage(true)
+        toast.loading('Uploading image...', { id: 'img-upload' })
         const url = await uploadToCloudinary(imageFile)
         fd.append('image_url', url)
-      } catch {
-        toast.error('Image upload failed. Product will be saved without image.')
+        toast.dismiss('img-upload')
+      } catch (err) {
+        toast.dismiss('img-upload')
+        const msg = err instanceof Error ? err.message : 'Image upload failed'
+        toast.error(`Image upload failed: ${msg}`)
+        return // stop — don't save without image if upload was attempted
       } finally {
         setUploadingImage(false)
       }
