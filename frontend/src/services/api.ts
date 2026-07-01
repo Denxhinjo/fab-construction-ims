@@ -104,11 +104,13 @@ export const suppliersApi = {
 }
 
 // ─── Products ───────────────────────────────────────────────────────────────
+const FORM_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded' }
+
 export const productsApi = {
   list: (params?: Record<string, unknown>) => api.get('/products', { params }),
   get: (id: number) => api.get(`/products/${id}`),
-  create: (data: FormData) => api.post('/products', data),
-  update: (id: number, data: FormData) => api.put(`/products/${id}`, data),
+  create: (data: URLSearchParams) => api.post('/products', data.toString(), { headers: FORM_HEADERS }),
+  update: (id: number, data: URLSearchParams) => api.put(`/products/${id}`, data.toString(), { headers: FORM_HEADERS }),
   delete: (id: number) => api.delete(`/products/${id}`),
 }
 

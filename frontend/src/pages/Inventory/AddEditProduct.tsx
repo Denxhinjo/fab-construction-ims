@@ -91,8 +91,8 @@ export default function AddEditProduct() {
   }, [product, isEdit])
 
   const mutation = useMutation({
-    mutationFn: (formData: FormData) =>
-      isEdit ? productsApi.update(Number(id), formData) : productsApi.create(formData),
+    mutationFn: (params: URLSearchParams) =>
+      isEdit ? productsApi.update(Number(id), params) : productsApi.create(params),
     onSuccess: (res) => {
       toast.success(isEdit ? 'Product updated!' : 'Product created!')
       qc.invalidateQueries({ queryKey: ['products'] })
@@ -126,25 +126,29 @@ export default function AddEditProduct() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
-    const fd = new FormData()
-    Object.entries(form).forEach(([k, v]) => { if (v !== '') fd.append(k, v) })
+
+    let imageUrl: string | null = null
     if (imageFile) {
       try {
         setUploadingImage(true)
         toast.loading('Uploading image...', { id: 'img-upload' })
-        const url = await uploadToCloudinary(imageFile)
-        fd.append('image_url', url)
+        imageUrl = await uploadToCloudinary(imageFile)
         toast.dismiss('img-upload')
       } catch (err) {
         toast.dismiss('img-upload')
         const msg = err instanceof Error ? err.message : 'Image upload failed'
         toast.error(`Image upload failed: ${msg}`)
-        return // stop — don't save without image if upload was attempted
+        setUploadingImage(false)
+        return
       } finally {
         setUploadingImage(false)
       }
     }
-    mutation.mutate(fd)
+
+    const params = new URLSearchParams()
+    Object.entries(form).forEach(([k, v]) => { if (v !== '') params.append(k, v) })
+    if (imageUrl) params.append('image_url', imageUrl)
+    mutation.mutate(params)
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
