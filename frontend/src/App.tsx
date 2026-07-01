@@ -8,6 +8,7 @@ import InventoryList from './pages/Inventory/InventoryList'
 import AddEditProduct from './pages/Inventory/AddEditProduct'
 import ProductDetail from './pages/Inventory/ProductDetail'
 import LocationList from './pages/Locations/LocationList'
+import SupplierList from './pages/Suppliers/SupplierList'
 import WorkProcessList from './pages/WorkProcesses/WorkProcessList'
 import AddEditWorkProcess from './pages/WorkProcesses/AddEditWorkProcess'
 import UserManagement from './pages/Users/UserManagement'
@@ -43,6 +44,7 @@ function AppRoutes() {
         <Route path="inventory/:id" element={<ProductDetail />} />
         <Route path="inventory/:id/edit" element={<AddEditProduct />} />
         <Route path="locations" element={<LocationList />} />
+        <Route path="suppliers" element={<SupplierList />} />
         <Route path="work-processes" element={<WorkProcessList />} />
         <Route path="work-processes/new" element={<AddEditWorkProcess />} />
         <Route path="work-processes/:id/edit" element={<AddEditWorkProcess />} />

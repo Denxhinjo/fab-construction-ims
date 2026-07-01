@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard, Package, MapPin, ClipboardList,
-  Users, BarChart3, HardHat, ChevronRight, X,
+  Users, BarChart3, HardHat, ChevronRight, X, Truck,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -18,6 +18,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     { to: '/inventory',      icon: Package,         label: t('nav.inventory')       },
     { to: '/locations',      icon: MapPin,          label: t('nav.locations')       },
     { to: '/work-processes', icon: ClipboardList,   label: t('nav.workProcesses')   },
+    { to: '/suppliers',      icon: Truck,            label: t('nav.suppliers')       },
     { to: '/reports',        icon: BarChart3,        label: t('nav.reports')         },
     ...(isAdmin ? [{ to: '/users', icon: Users, label: t('nav.users') }] : []),
   ]
