@@ -230,7 +230,13 @@
     "deleteWarning": "A jeni i sigurt që dëshironi të fshini këtë proces pune? Kjo veprim nuk mund të kthehet prapa.",
     "failedToSave": "Dështoi ruajtja",
     "due": "Afati:",
-    "dueOverdue": "Afati kaloi:"
+    "dueOverdue": "Afati kaloi:",
+    "image": "Imazhi i Procesit",
+    "uploadImage": "Klikoni për të ngarkuar imazhin",
+    "uploadHint": "JPEG, PNG, WebP deri në 10MB",
+    "uploadingImage": "Duke ngarkuar imazhin...",
+    "imageUploadFailed": "Ngarkimi i imazhit dështoi",
+    "viewImage": "Shiko imazhin"
   },
   "users": {
     "title": "Menaxhimi i Përdoruesve",

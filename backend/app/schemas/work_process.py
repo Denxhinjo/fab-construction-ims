@@ -18,6 +18,7 @@ class WorkProcessBase(BaseModel):
     due_date: Optional[date] = None
     completion_date: Optional[date] = None
     notes: Optional[str] = None
+    image_url: Optional[str] = None
 
     @field_validator("status")
     @classmethod
@@ -52,10 +53,12 @@ class WorkProcessUpdate(BaseModel):
     due_date: Optional[date] = None
     completion_date: Optional[date] = None
     notes: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class WorkProcessOut(WorkProcessBase):
     id: int
+    image_url: Optional[str] = None
     product: Optional[ProductSummary] = None
     assigned_user: Optional[UserSummary] = None
     location: Optional[LocationSummary] = None

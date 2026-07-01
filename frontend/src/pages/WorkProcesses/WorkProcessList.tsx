@@ -7,7 +7,7 @@ import {
   Plus, Search, ClipboardList, Edit2, Trash2, Calendar,
   MapPin, User, ChevronLeft, ChevronRight, Filter
 } from 'lucide-react'
-import { workProcessesApi } from '../../services/api'
+import { workProcessesApi, mediaUrl } from '../../services/api'
 import type { WorkProcess, WorkProcessListOut } from '../../types'
 import { StatusBadge, PriorityBadge } from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
@@ -140,6 +140,12 @@ export default function WorkProcessList() {
               className={`card p-4 border-l-4 hover:shadow-md transition-shadow ${statusColors[wp.status] ?? 'border-l-slate-200'}`}
             >
               <div className="flex items-start justify-between gap-3">
+                {/* Work process image thumbnail */}
+                {wp.image_url && (
+                  <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border border-slate-100">
+                    <img src={mediaUrl(wp.image_url)} alt={wp.title} className="w-full h-full object-cover" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="font-semibold text-slate-800 truncate">{wp.title}</h3>
