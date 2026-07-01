@@ -13,10 +13,12 @@ app = FastAPI(
     redoc_url="/api/redoc",
 )
 
+# We use Bearer tokens (not cookies), so allow_credentials=False is correct.
+# allow_origins=["*"] only works without credentials — which is fine for us.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
