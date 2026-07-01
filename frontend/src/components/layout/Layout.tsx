@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import { useInactivityLogout } from '../../hooks/useInactivityLogout'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  useInactivityLogout()
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
