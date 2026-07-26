@@ -2,6 +2,8 @@
 
 A full-stack, production-quality Inventory Management System built for **Fab Construction**. Tracks products, locations, suppliers, stock movements, and work processes.
 
+**Case study:** [denxhinjo-labs.vercel.app/projects/fab-inventory-system](https://denxhinjo-labs.vercel.app/projects/fab-inventory-system)
+
 ## Tech Stack
 
 | Layer       | Technology                               |
