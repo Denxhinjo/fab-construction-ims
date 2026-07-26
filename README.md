@@ -100,7 +100,7 @@ docker-compose up --build
 
 | Role  | Email                              | Password   |
 |-------|------------------------------------|------------|
-| Admin | admin@fabconstruction.com          | Admin@123  |
+| Admin | admin@fabconstruction.com          | admin      |
 | User  | john.smith@fabconstruction.com     | User@123   |
 | User  | sarah.jones@fabconstruction.com    | User@123   |
 | User  | mike.wilson@fabconstruction.com    | User@123   |
