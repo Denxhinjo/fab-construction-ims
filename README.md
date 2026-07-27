@@ -112,7 +112,7 @@ docker-compose up --build
 ## Project Structure
 
 ```
-IMS_Clean/
+fab-construction-ims/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI entry point
