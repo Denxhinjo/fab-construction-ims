@@ -4,7 +4,10 @@ from typing import List
 from passlib.context import CryptContext
 from ..database import get_db
 from ..models.user import User
+from ..models.location import Location
 from ..schemas.user import UserCreate, UserUpdate, UserOut
+from ..schemas.location import LocationOut
+from ..schemas.permission import LocationIdsUpdate
 from ..dependencies import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -44,6 +47,54 @@ def create_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get("/me/locations", response_model=List[LocationOut])
+def get_my_locations(current_user: User = Depends(get_current_user)):
+    """The warehouses/locations the current user is allowed to create or edit
+    products in. Meaningless for admins, who aren't restricted by this table
+    at all -- included mainly for regular users' client-side location pickers.
+    """
+    return current_user.permitted_locations
+
+
+@router.get("/{user_id}/locations", response_model=List[LocationOut])
+def get_user_locations(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user.permitted_locations
+
+
+@router.put("/{user_id}/locations", response_model=List[LocationOut])
+def set_user_locations(
+    user_id: int,
+    payload: LocationIdsUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Replaces the full set of permitted locations for a user (not an
+    incremental add/remove) -- simplest semantics for an admin-facing
+    "these are exactly this user's warehouses" screen.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    locations = db.query(Location).filter(Location.id.in_(payload.location_ids)).all()
+    found_ids = {loc.id for loc in locations}
+    missing = set(payload.location_ids) - found_ids
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Unknown location ids: {sorted(missing)}")
+
+    user.permitted_locations = locations
+    db.commit()
+    db.refresh(user)
+    return user.permitted_locations
 
 
 @router.get("/{user_id}", response_model=UserOut)

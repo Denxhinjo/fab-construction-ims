@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from ..database import Base
+from .user_location_permission import user_location_permissions
 
 
 class UserRole(str, enum.Enum):
@@ -27,3 +28,6 @@ class User(Base):
 
     stock_movements = relationship("StockMovement", back_populates="user", lazy="dynamic")
     work_processes = relationship("WorkProcess", back_populates="assigned_user", foreign_keys="WorkProcess.assigned_user_id", lazy="dynamic")
+    permitted_locations = relationship(
+        "Location", secondary=user_location_permissions, back_populates="permitted_users"
+    )
