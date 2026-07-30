@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
+from .user_location_permission import user_location_permissions
 
 
 class Location(Base):
@@ -21,3 +22,6 @@ class Location(Base):
 
     products = relationship("Product", back_populates="location", lazy="dynamic")
     work_processes = relationship("WorkProcess", back_populates="location", lazy="dynamic")
+    permitted_users = relationship(
+        "User", secondary=user_location_permissions, back_populates="permitted_locations"
+    )

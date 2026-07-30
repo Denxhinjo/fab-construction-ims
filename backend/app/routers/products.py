@@ -11,6 +11,10 @@ import math
 router = APIRouter(prefix="/api/products", tags=["products"])
 
 
+def _permitted_location_ids(user: User) -> set[int]:
+    return {loc.id for loc in user.permitted_locations}
+
+
 @router.get("", response_model=ProductListOut)
 def list_products(
     page: int = Query(1, ge=1),
@@ -22,7 +26,7 @@ def list_products(
     status: Optional[str] = None,
     low_stock: Optional[bool] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     query = db.query(Product)
     if search:
@@ -37,6 +41,12 @@ def list_products(
         query = query.filter(Product.status == status)
     if low_stock:
         query = query.filter(Product.quantity <= Product.min_stock_level, Product.min_stock_level > 0)
+
+    # Non-admins only ever see products in warehouses they've been granted
+    # access to -- an empty permitted set means an empty product list, not
+    # an unfiltered one.
+    if current_user.role != "admin":
+        query = query.filter(Product.location_id.in_(_permitted_location_ids(current_user)))
 
     total = query.count()
     items = query.offset((page - 1) * page_size).limit(page_size).all()
@@ -65,8 +75,17 @@ def create_product(
     notes: Optional[str] = Form(None),
     image_url: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.role != "admin":
+        if location_id is None:
+            raise HTTPException(status_code=400, detail="location_id is required")
+        if location_id not in _permitted_location_ids(current_user):
+            raise HTTPException(
+                status_code=403,
+                detail="You don't have permission to add products to this location",
+            )
+
     product = Product(
         name=name, sku=sku, category_id=category_id, description=description,
         quantity=quantity, unit=unit, min_stock_level=min_stock_level,
@@ -83,11 +102,13 @@ def create_product(
 def get_product(
     product_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    if current_user.role != "admin" and product.location_id not in _permitted_location_ids(current_user):
+        raise HTTPException(status_code=403, detail="You don't have access to this product's location")
     return ProductOut.model_validate(product)
 
 
@@ -108,11 +129,21 @@ def update_product(
     notes: Optional[str] = Form(None),
     image_url: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    if current_user.role != "admin":
+        permitted = _permitted_location_ids(current_user)
+        if product.location_id not in permitted:
+            raise HTTPException(status_code=403, detail="You don't have access to this product's location")
+        if location_id is not None and location_id not in permitted:
+            raise HTTPException(
+                status_code=403,
+                detail="You don't have permission to move products to that location",
+            )
 
     if image_url:
         product.image_url = image_url
