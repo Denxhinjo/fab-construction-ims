@@ -6,8 +6,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts'
-import { stockMovementsApi, productsApi, categoriesApi } from '../../services/api'
-import type { StockMovementListOut, ProductListOut, Category } from '../../types'
+import { stockMovementsApi, productsApi, categoriesApi, locationsApi, suppliersApi, dashboardApi } from '../../services/api'
+import type { StockMovementListOut, ProductListOut, Category, Location, Supplier, DashboardStats } from '../../types'
 import { StatusBadge } from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
 import { format as fmt } from 'date-fns'
@@ -35,6 +35,21 @@ export default function Reports() {
     queryFn: () => categoriesApi.list().then((r) => r.data),
   })
 
+  const { data: locations } = useQuery<Location[]>({
+    queryKey: ['locations'],
+    queryFn: () => locationsApi.list().then((r) => r.data),
+  })
+
+  const { data: suppliers } = useQuery<Supplier[]>({
+    queryKey: ['suppliers'],
+    queryFn: () => suppliersApi.list().then((r) => r.data),
+  })
+
+  const { data: dashboardStats } = useQuery<DashboardStats>({
+    queryKey: ['dashboard'],
+    queryFn: () => dashboardApi.stats().then((r) => r.data),
+  })
+
   // Build daily movement chart data
   const movementsByDate: Record<string, { date: string; 'Stock In': number; 'Stock Out': number; Adjustment: number }> = {}
   movementsData?.items.forEach((m) => {
@@ -49,6 +64,21 @@ export default function Reports() {
     name: c.name,
     value: c.product_count,
   })).filter((c) => c.value > 0) ?? []
+
+  const locationData = locations?.map((l) => ({
+    name: l.name,
+    value: l.product_count,
+  })).filter((l) => l.value > 0) ?? []
+
+  const supplierData = suppliers?.map((s) => ({
+    name: s.name,
+    value: s.product_count,
+  })).filter((s) => s.value > 0) ?? []
+
+  const wpByStatus = (dashboardStats?.work_process_by_status ?? {}) as Record<string, number>
+  const workProcessData = Object.entries(wpByStatus)
+    .map(([name, value]) => ({ name, value }))
+    .filter((wp) => wp.value > 0)
 
   // Summary
   const totalIn = movementsData?.items.filter(m => m.movement_type === 'Stock In').reduce((s, m) => s + m.quantity, 0) ?? 0
@@ -141,6 +171,13 @@ export default function Reports() {
         </div>
       </div>
 
+      {/* More breakdowns */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <DonutCard title={t('reports.productsByLocation')} data={locationData} noDataLabel={t('reports.noData')} />
+        <DonutCard title={t('reports.productsBySupplier')} data={supplierData} noDataLabel={t('reports.noData')} />
+        <DonutCard title={t('reports.workProcessByStatus')} data={workProcessData} noDataLabel={t('reports.noData')} />
+      </div>
+
       {/* Movement table */}
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
@@ -189,6 +226,29 @@ export default function Reports() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function DonutCard({ title, data, noDataLabel }: { title: string; data: { name: string; value: number }[]; noDataLabel: string }) {
+  return (
+    <div className="card p-5">
+      <h2 className="text-sm font-semibold text-slate-700 mb-4">{title}</h2>
+      {data.length === 0 ? (
+        <div className="flex items-center justify-center h-48 text-slate-400 text-sm">{noDataLabel}</div>
+      ) : (
+        <ResponsiveContainer width="100%" height={220}>
+          <PieChart>
+            <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
+              {data.map((_, i) => (
+                <Cell key={i} fill={COLORS[i % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+          </PieChart>
+        </ResponsiveContainer>
+      )}
     </div>
   )
 }

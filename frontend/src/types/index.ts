@@ -193,10 +193,13 @@ export interface DashboardStats {
     active_work_processes: number
     completed_work_processes: number
     total_users: number
+    total_inventory_value: number
   }
   stock_summary: {
     stock_in_30d: number
     stock_out_30d: number
+    stock_in_prev_30d: number
+    stock_out_prev_30d: number
   }
   work_process_by_status: Record<WorkProcessStatus, number>
   recent_activity: Array<{
