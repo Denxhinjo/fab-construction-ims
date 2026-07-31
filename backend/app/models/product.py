@@ -27,7 +27,12 @@ class Product(Base):
     category = relationship("Category", back_populates="products")
     location = relationship("Location", back_populates="products")
     supplier = relationship("Supplier", back_populates="products")
-    stock_movements = relationship("StockMovement", back_populates="product", lazy="dynamic")
+    stock_movements = relationship(
+        "StockMovement",
+        back_populates="product",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
     work_processes = relationship("WorkProcess", back_populates="product", lazy="dynamic")
 
     @property
