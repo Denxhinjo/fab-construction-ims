@@ -32,6 +32,10 @@ def get_dashboard_stats(
     ).count()
     total_users = db.query(User).filter(User.is_active == True).count()
 
+    total_inventory_value = db.query(
+        func.sum(Product.quantity * func.coalesce(Product.unit_price, 0))
+    ).scalar() or 0
+
     # Recent activity (last 7 days)
     seven_days_ago = date.today() - timedelta(days=7)
     recent_movements = (
@@ -69,6 +73,21 @@ def get_dashboard_stats(
         StockMovement.movement_date >= thirty_days_ago,
     ).scalar() or 0
 
+    # Prior 30-day window, so the frontend can show a trend delta rather
+    # than a bare total with no point of comparison.
+    sixty_days_ago = date.today() - timedelta(days=60)
+    stock_in_prev_total = db.query(func.sum(StockMovement.quantity)).filter(
+        StockMovement.movement_type == "Stock In",
+        StockMovement.movement_date >= sixty_days_ago,
+        StockMovement.movement_date < thirty_days_ago,
+    ).scalar() or 0
+
+    stock_out_prev_total = db.query(func.sum(StockMovement.quantity)).filter(
+        StockMovement.movement_type == "Stock Out",
+        StockMovement.movement_date >= sixty_days_ago,
+        StockMovement.movement_date < thirty_days_ago,
+    ).scalar() or 0
+
     # Work processes by status
     wp_by_status = {}
     for stat in ["Not Started", "Started", "In Process", "Done"]:
@@ -101,10 +120,13 @@ def get_dashboard_stats(
             "active_work_processes": active_work_processes,
             "completed_work_processes": completed_work_processes,
             "total_users": total_users,
+            "total_inventory_value": float(total_inventory_value),
         },
         "stock_summary": {
             "stock_in_30d": float(stock_in_total),
             "stock_out_30d": float(stock_out_total),
+            "stock_in_prev_30d": float(stock_in_prev_total),
+            "stock_out_prev_30d": float(stock_out_prev_total),
         },
         "work_process_by_status": wp_by_status,
         "recent_activity": recent_activity,

@@ -20,6 +20,16 @@ def seed():
     db = SessionLocal()
 
     try:
+        # This script runs on every container start, but it's only meant to
+        # populate a brand-new database. Once real usage has modified the
+        # data (e.g. products/movements deleted through the app), later
+        # sections here can no longer assume the original demo indices/counts
+        # line up, so skip entirely rather than seed a partial, mismatched
+        # dataset on top of a live database.
+        if db.query(User).count() > 0:
+            print("Database already seeded -- skipping.")
+            return
+
         # Users
         if db.query(User).count() == 0:
             users = [

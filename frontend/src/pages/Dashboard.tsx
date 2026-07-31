@@ -1,13 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Package, MapPin, ClipboardList, CheckCircle2, AlertTriangle, Users, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
+import {
+  Package, MapPin, ClipboardList, CheckCircle2, AlertTriangle, Users, TrendingUp, TrendingDown,
+  ArrowRight, Wallet, PackagePlus, ArrowLeftRight, ListPlus, Truck,
+} from 'lucide-react'
 import { dashboardApi } from '../services/api'
 import type { DashboardStats } from '../types'
 import StatsCard from '../components/ui/StatsCard'
 import { StatusBadge } from '../components/ui/Badge'
 import Spinner from '../components/ui/Spinner'
 import { format } from 'date-fns'
+
+function trendOf(current: number, previous: number): { pct: number; positive: boolean } | undefined {
+  if (previous <= 0) return undefined
+  const pct = Math.round(((current - previous) / previous) * 100)
+  return { pct, positive: pct >= 0 }
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -24,12 +33,50 @@ export default function Dashboard() {
   const recentActivity = data?.recent_activity ?? []
   const lowStockItems = data?.low_stock_items ?? []
   const wpByStatus = (data?.work_process_by_status ?? {}) as Record<string, number>
+  const stockInTrend = trendOf(data?.stock_summary.stock_in_30d ?? 0, data?.stock_summary.stock_in_prev_30d ?? 0)
+  const stockOutTrend = trendOf(data?.stock_summary.stock_out_30d ?? 0, data?.stock_summary.stock_out_prev_30d ?? 0)
+
+  const quickActions = [
+    { label: t('dashboard.quickAddProduct'), icon: PackagePlus, to: '/inventory/new' },
+    { label: t('dashboard.quickRecordMovement'), icon: ArrowLeftRight, to: '/inventory' },
+    { label: t('dashboard.quickNewWorkProcess'), icon: ListPlus, to: '/work-processes/new' },
+    { label: t('dashboard.quickAddSupplier'), icon: Truck, to: '/suppliers' },
+  ]
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">{t('dashboard.title')}</h1>
         <p className="text-slate-500 text-sm mt-0.5">{t('dashboard.welcome')}</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 card p-5 bg-gradient-to-br from-brand-500 to-brand-600 text-white flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center flex-shrink-0">
+            <Wallet className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-white/80 font-medium">{t('dashboard.totalInventoryValue')}</p>
+            <p className="text-3xl font-bold mt-0.5">
+              ${(stats?.total_inventory_value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3">
+          {quickActions.map(({ label, icon: Icon, to }) => (
+            <button
+              key={to + label}
+              onClick={() => navigate(to)}
+              className="card p-3 flex flex-col items-center justify-center gap-2 text-center hover:shadow-md hover:border-brand-200 transition-all"
+            >
+              <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center">
+                <Icon className="w-4 h-4 text-brand-600" />
+              </div>
+              <span className="text-xs font-medium text-slate-600 leading-tight">{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -52,6 +99,11 @@ export default function Dashboard() {
               <div>
                 <p className="text-xs text-slate-500">{t('dashboard.stockInLabel')}</p>
                 <p className="text-xl font-bold text-green-700">+{data?.stock_summary.stock_in_30d.toLocaleString()}</p>
+                {stockInTrend && (
+                  <p className={`text-xs font-medium ${stockInTrend.positive ? 'text-green-600' : 'text-red-600'}`}>
+                    {stockInTrend.positive ? '↑' : '↓'} {Math.abs(stockInTrend.pct)}% {t('dashboard.vsPrior30')}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-red-50 rounded-xl">
@@ -61,6 +113,11 @@ export default function Dashboard() {
               <div>
                 <p className="text-xs text-slate-500">{t('dashboard.stockOutLabel')}</p>
                 <p className="text-xl font-bold text-red-700">-{data?.stock_summary.stock_out_30d.toLocaleString()}</p>
+                {stockOutTrend && (
+                  <p className={`text-xs font-medium ${stockOutTrend.positive ? 'text-red-600' : 'text-green-600'}`}>
+                    {stockOutTrend.positive ? '↑' : '↓'} {Math.abs(stockOutTrend.pct)}% {t('dashboard.vsPrior30')}
+                  </p>
+                )}
               </div>
             </div>
           </div>
