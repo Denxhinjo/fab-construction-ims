@@ -88,6 +88,40 @@ def get_dashboard_stats(
         StockMovement.movement_date < thirty_days_ago,
     ).scalar() or 0
 
+    # Top moved products (last 30 days) -- powers a "top products" bar chart
+    top_moved_rows = (
+        db.query(
+            StockMovement.product_id,
+            func.sum(StockMovement.quantity).label("total_qty"),
+        )
+        .filter(StockMovement.movement_date >= thirty_days_ago)
+        .group_by(StockMovement.product_id)
+        .order_by(func.sum(StockMovement.quantity).desc())
+        .limit(3)
+        .all()
+    )
+    top_moved_products = []
+    for product_id, total_qty in top_moved_rows:
+        product = db.query(Product).filter(Product.id == product_id).first()
+        if product:
+            top_moved_products.append({
+                "id": product.id,
+                "name": product.name,
+                "quantity": float(total_qty),
+                "unit": product.unit,
+            })
+
+    # Movement counts this week vs last week, for a weekly-progress style card
+    week_start = date.today() - timedelta(days=date.today().weekday())
+    last_week_start = week_start - timedelta(days=7)
+    movements_this_week = db.query(StockMovement).filter(
+        StockMovement.movement_date >= week_start,
+    ).count()
+    movements_last_week = db.query(StockMovement).filter(
+        StockMovement.movement_date >= last_week_start,
+        StockMovement.movement_date < week_start,
+    ).count()
+
     # Work processes by status
     wp_by_status = {}
     for stat in ["Not Started", "Started", "In Process", "Done"]:
@@ -131,4 +165,7 @@ def get_dashboard_stats(
         "work_process_by_status": wp_by_status,
         "recent_activity": recent_activity,
         "low_stock_items": low_stock_list,
+        "top_moved_products": top_moved_products,
+        "movements_this_week": movements_this_week,
+        "movements_last_week": movements_last_week,
     }
