@@ -4,10 +4,11 @@ from typing import List
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/fab_construction_ims"
-    SECRET_KEY: str = "change-this-secret-key-in-production-32chars"
+    # No default on purpose -- a missing SECRET_KEY should fail startup loudly
+    # rather than silently sign JWTs with a value anyone can read in this file.
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     MEDIA_DIR: str = "media"
     MAX_FILE_SIZE_MB: int = 10
     CLOUDINARY_CLOUD_NAME: str = ""
