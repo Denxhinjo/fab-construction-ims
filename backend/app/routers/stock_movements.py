@@ -9,6 +9,7 @@ from ..models.product import Product
 from ..schemas.stock_movement import StockMovementCreate, StockMovementOut, StockMovementListOut
 from ..dependencies import get_current_user
 from ..models.user import User
+from ..services.permissions import permitted_location_ids, require_location_access
 
 router = APIRouter(prefix="/api/stock-movements", tags=["stock-movements"])
 
@@ -22,7 +23,7 @@ def list_movements(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     query = db.query(StockMovement)
     if product_id:
@@ -33,6 +34,14 @@ def list_movements(
         query = query.filter(StockMovement.movement_date >= date_from)
     if date_to:
         query = query.filter(StockMovement.movement_date <= date_to)
+
+    # Non-admins only ever see movements against products in warehouses
+    # they've been granted access to -- StockMovement has no location_id of
+    # its own, so this scopes through the product it's against.
+    if current_user.role != "admin":
+        query = query.join(Product, StockMovement.product_id == Product.id).filter(
+            Product.location_id.in_(permitted_location_ids(current_user))
+        )
 
     query = query.order_by(StockMovement.created_at.desc())
     total = query.count()
@@ -55,6 +64,12 @@ def create_movement(
     product = db.query(Product).filter(Product.id == payload.product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    require_location_access(
+        current_user,
+        product.location_id,
+        "You don't have permission to record movements for this product's location",
+    )
 
     previous_qty = product.quantity
 
@@ -85,9 +100,17 @@ def create_movement(
 def get_movement(
     movement_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
     if not movement:
         raise HTTPException(status_code=404, detail="Stock movement not found")
+
+    product = db.query(Product).filter(Product.id == movement.product_id).first()
+    require_location_access(
+        current_user,
+        product.location_id if product else None,
+        "You don't have access to this movement's location",
+    )
+
     return StockMovementOut.model_validate(movement)
