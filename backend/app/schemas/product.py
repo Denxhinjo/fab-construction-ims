@@ -21,29 +21,12 @@ class ProductBase(BaseModel):
     notes: Optional[str] = None
 
 
-class ProductCreate(ProductBase):
-    pass
-
-
-class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    sku: Optional[str] = None
-    category_id: Optional[int] = None
-    description: Optional[str] = None
-    quantity: Optional[float] = None
-    unit: Optional[str] = None
-    min_stock_level: Optional[float] = None
-    unit_price: Optional[float] = None
-    location_id: Optional[int] = None
-    supplier_id: Optional[int] = None
-    status: Optional[str] = None
-    notes: Optional[str] = None
-
-
 class ProductOut(ProductBase):
     id: int
     image_url: Optional[str] = None
     is_low_stock: bool = False
+    archived_at: Optional[datetime] = None
+    archived_by_id: Optional[int] = None
     category: Optional[CategorySummary] = None
     location: Optional[LocationSummary] = None
     supplier: Optional[SupplierSummary] = None
