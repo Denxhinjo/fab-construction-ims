@@ -13,9 +13,10 @@ A full-stack, production-quality Inventory Management System built for **Fab Con
 | Database    | PostgreSQL 16                            |
 | ORM         | SQLAlchemy 2 + Alembic                  |
 | Auth        | JWT (python-jose) + bcrypt               |
-| File Upload | Local media storage (S3-ready structure) |
+| File Upload | Cloudinary, via a backend-owned upload endpoint (see [Security Notes](#security-notes)) |
 | Charts      | Recharts                                 |
 | State       | TanStack Query (React Query)             |
+| Mobile      | Native Android companion app (Kotlin + Jetpack Compose, separate `FabInventoryMobile` repo) |
 
 ---
 
@@ -100,12 +101,16 @@ docker-compose up --build
 
 ## Demo Accounts
 
-| Role  | Email                              | Password   |
-|-------|------------------------------------|------------|
-| Admin | admin@fabconstruction.com          | admin      |
-| User  | john.smith@fabconstruction.com     | User@123   |
-| User  | sarah.jones@fabconstruction.com    | User@123   |
-| User  | mike.wilson@fabconstruction.com    | User@123   |
+The login form takes a **username**, not an email. After running `python seed_data.py` locally:
+
+| Role  | Username  | Password   |
+|-------|-----------|------------|
+| Admin | admin     | Admin@123  |
+| User  | jsmith    | User@123   |
+| User  | sjones    | User@123   |
+| User  | mwilson   | User@123   |
+
+The login screen shows the admin/jsmith pair automatically in dev builds (`import.meta.env.DEV`) — it's stripped out of production bundles.
 
 ---
 
@@ -121,20 +126,26 @@ fab-construction-ims/
 │   │   ├── dependencies.py      # Auth dependency injection
 │   │   ├── models/              # SQLAlchemy ORM models
 │   │   ├── schemas/             # Pydantic request/response schemas
-│   │   └── routers/             # API route handlers
+│   │   ├── services/            # permissions.py (location-access helpers), storage.py (Cloudinary)
+│   │   └── routers/             # API route handlers (incl. uploads.py)
 │   ├── alembic/                 # Database migrations
-│   ├── media/                   # Uploaded product images
-│   ├── seed_data.py             # Demo data seeder
+│   ├── tests/                   # pytest suite (auth, products, stock movements, dashboard, work processes)
+│   ├── media/                   # Legacy local media (uploads now go to Cloudinary)
+│   ├── seed_data.py             # Demo data seeder — manual/local only, never run on deploy
 │   ├── requirements.txt
+│   ├── requirements-dev.txt     # requirements.txt + pytest
+│   ├── pytest.ini
 │   ├── Dockerfile
 │   └── .env.example
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx              # Routes + AuthProvider wrapper
+│   │   ├── App.tsx              # Routes + AuthProvider wrapper (route-level code-split)
 │   │   ├── context/             # AuthContext (JWT + user state)
 │   │   ├── services/api.ts      # Axios API client + interceptors
+│   │   ├── i18n/                # en/sq translations
 │   │   ├── types/index.ts       # TypeScript interfaces
+│   │   ├── test/setup.ts        # Vitest + Testing Library setup
 │   │   ├── components/
 │   │   │   ├── layout/          # Sidebar, Header, Layout
 │   │   │   └── ui/              # Badge, Modal, Spinner, EmptyState...
@@ -150,6 +161,7 @@ fab-construction-ims/
 │   ├── nginx.conf
 │   └── package.json
 │
+├── .github/workflows/ci.yml     # Backend pytest + frontend lint/build/test
 ├── docker-compose.yml
 └── README.md
 ```
@@ -160,24 +172,27 @@ fab-construction-ims/
 
 | Method | Path                        | Description                     |
 |--------|-----------------------------|---------------------------------|
-| POST   | /api/auth/login             | Login (returns JWT)             |
-| GET    | /api/auth/me                | Current user                    |
-| GET    | /api/products               | List products (paginated+filter)|
-| POST   | /api/products               | Create product (multipart)      |
-| GET    | /api/products/{id}          | Get product detail              |
-| PUT    | /api/products/{id}          | Update product                  |
-| DELETE | /api/products/{id}          | Delete product (admin only)     |
-| GET    | /api/categories             | List categories                 |
-| GET    | /api/locations              | List locations                  |
-| GET    | /api/suppliers              | List suppliers                  |
-| GET    | /api/stock-movements        | List movements (paginated)      |
-| POST   | /api/stock-movements        | Record stock movement           |
-| GET    | /api/work-processes         | List work processes             |
-| POST   | /api/work-processes         | Create work process             |
-| PUT    | /api/work-processes/{id}    | Update work process             |
-| GET    | /api/users                  | List users (admin only)         |
-| POST   | /api/users                  | Create user (admin only)        |
-| GET    | /api/dashboard/stats        | Dashboard statistics            |
+| POST   | /api/auth/login             | Login (returns JWT)              |
+| GET    | /api/auth/me                | Current user                     |
+| POST   | /api/auth/change-password   | Change own password              |
+| GET    | /api/products                | List products (paginated+filter, location-scoped) |
+| POST   | /api/products                | Create product (multipart, sets initial quantity) |
+| GET    | /api/products/{id}          | Get product detail               |
+| PUT    | /api/products/{id}          | Update product (quantity not settable — use stock-movements) |
+| DELETE | /api/products/{id}          | Archive product (admin only, soft delete) |
+| GET    | /api/categories             | List categories                  |
+| GET    | /api/locations               | List locations                   |
+| GET    | /api/suppliers               | List suppliers                   |
+| GET    | /api/stock-movements         | List movements (paginated, location-scoped) |
+| POST   | /api/stock-movements         | Record Stock In/Out/Adjustment (updates product quantity + audit trail) |
+| GET    | /api/work-processes          | List work processes (location-scoped) |
+| POST   | /api/work-processes          | Create work process              |
+| PUT    | /api/work-processes/{id}    | Update work process              |
+| DELETE | /api/work-processes/{id}    | Delete work process (admin only) |
+| GET    | /api/users                   | List users (admin only)          |
+| POST   | /api/users                   | Create user (admin only)         |
+| POST   | /api/uploads/image           | Upload a product/work-process image to Cloudinary (authenticated, both web and Android use this — see [Security Notes](#security-notes)) |
+| GET    | /api/dashboard/stats         | Dashboard statistics (location-scoped for non-admins) |
 
 Full interactive docs: http://localhost:8000/api/docs
 
@@ -194,7 +209,12 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 MEDIA_DIR=media
 ALLOWED_ORIGINS=http://localhost:5173
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
 ```
+
+`SECRET_KEY` has no default — the app fails to start without it, on purpose, rather than silently signing JWTs with a value anyone could read from source.
 
 ---
 
@@ -214,11 +234,40 @@ alembic downgrade -1
 
 ---
 
+## Testing
+
+```bash
+# Backend — pytest against an in-memory SQLite DB, no running Postgres needed
+cd backend
+python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+pytest -q
+
+# Frontend — Vitest + React Testing Library
+cd frontend
+npm run lint
+npm run build
+npm test
+```
+
+CI (`.github/workflows/ci.yml`) runs all of the above on every push/PR. The Android companion app has its own JVM unit test suite and CI workflow in the `FabInventoryMobile` repo.
+
+---
+
+## Security Notes
+
+- **JWT storage**: the access token is kept in `localStorage`, not an httpOnly cookie. This is a deliberate MVP tradeoff — it's simple and works identically for the web app and the Android client (which sends the same bearer token via Retrofit) — but it means a successful XSS could exfiltrate the token. Revisit this (httpOnly cookie + CSRF token for the web client) before this app handles real customer/financial data rather than an internal company tool.
+- **Uploads**: neither client talks to Cloudinary directly or embeds an unsigned upload preset. Every image goes through `POST /api/uploads/image`, which is behind normal JWT auth and holds the Cloudinary credentials server-side only.
+- **`SECRET_KEY`**: required at startup with no fallback — set it via `.env` locally and via your host's secret/env-var manager in production.
+- **Seeding**: `seed_data.py` is a manual, local/dev-only script (idempotent — skips if any user already exists) and is never invoked automatically by the Docker or Railway startup commands.
+
+---
+
 ## Future Enhancements
 
-- S3/Supabase Storage for product images
 - Email notifications for low stock
 - PDF/CSV export for reports
 - Mobile PWA support
 - Barcode/QR scanning
 - Multi-currency pricing
+- ERP-direction roadmap (procurement, warehouse transfers, approvals, inventory valuation) — see the Android companion app's README for the mobile side of this direction
