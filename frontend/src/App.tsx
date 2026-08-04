@@ -1,21 +1,34 @@
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import InventoryList from './pages/Inventory/InventoryList'
-import AddEditProduct from './pages/Inventory/AddEditProduct'
-import ProductDetail from './pages/Inventory/ProductDetail'
-import LocationList from './pages/Locations/LocationList'
-import SupplierList from './pages/Suppliers/SupplierList'
-import WorkProcessList from './pages/WorkProcesses/WorkProcessList'
-import AddEditWorkProcess from './pages/WorkProcesses/AddEditWorkProcess'
-import UserManagement from './pages/Users/UserManagement'
-import Reports from './pages/Reports/Reports'
 import Spinner from './components/ui/Spinner'
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
+// Everything past login is route-level code-split -- these are the bulk of
+// the bundle (charts, forms, tables) and aren't needed until a user actually
+// navigates to them.
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const InventoryList = lazy(() => import('./pages/Inventory/InventoryList'))
+const AddEditProduct = lazy(() => import('./pages/Inventory/AddEditProduct'))
+const ProductDetail = lazy(() => import('./pages/Inventory/ProductDetail'))
+const LocationList = lazy(() => import('./pages/Locations/LocationList'))
+const SupplierList = lazy(() => import('./pages/Suppliers/SupplierList'))
+const WorkProcessList = lazy(() => import('./pages/WorkProcesses/WorkProcessList'))
+const AddEditWorkProcess = lazy(() => import('./pages/WorkProcesses/AddEditWorkProcess'))
+const UserManagement = lazy(() => import('./pages/Users/UserManagement'))
+const Reports = lazy(() => import('./pages/Reports/Reports'))
+
+function RouteFallback() {
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center">
+      <Spinner size="lg" />
+    </div>
+  )
+}
+
+export function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -25,7 +38,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
 }
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
+export function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, isLoading } = useAuth()
   if (isLoading) return null
   return isAdmin ? <>{children}</> : <Navigate to="/dashboard" replace />
@@ -34,25 +47,27 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { isAuthenticated } = useAuth()
   return (
-    <Routes>
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
-      <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="inventory" element={<InventoryList />} />
-        <Route path="inventory/new" element={<AddEditProduct />} />
-        <Route path="inventory/:id" element={<ProductDetail />} />
-        <Route path="inventory/:id/edit" element={<AddEditProduct />} />
-        <Route path="locations" element={<LocationList />} />
-        <Route path="suppliers" element={<SupplierList />} />
-        <Route path="work-processes" element={<WorkProcessList />} />
-        <Route path="work-processes/new" element={<AddEditWorkProcess />} />
-        <Route path="work-processes/:id/edit" element={<AddEditWorkProcess />} />
-        <Route path="users" element={<AdminRoute><UserManagement /></AdminRoute>} />
-        <Route path="reports" element={<Reports />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
+        <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="inventory" element={<InventoryList />} />
+          <Route path="inventory/new" element={<AddEditProduct />} />
+          <Route path="inventory/:id" element={<ProductDetail />} />
+          <Route path="inventory/:id/edit" element={<AddEditProduct />} />
+          <Route path="locations" element={<LocationList />} />
+          <Route path="suppliers" element={<SupplierList />} />
+          <Route path="work-processes" element={<WorkProcessList />} />
+          <Route path="work-processes/new" element={<AddEditWorkProcess />} />
+          <Route path="work-processes/:id/edit" element={<AddEditWorkProcess />} />
+          <Route path="users" element={<AdminRoute><UserManagement /></AdminRoute>} />
+          <Route path="reports" element={<Reports />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Suspense>
   )
 }
 
