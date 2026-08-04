@@ -14,12 +14,14 @@ import Spinner from '../../components/ui/Spinner'
 import EmptyState from '../../components/ui/EmptyState'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import toast from 'react-hot-toast'
+import { useAuth } from '../../context/AuthContext'
 
 export default function WorkProcessList() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const qc = useQueryClient()
   const { t } = useTranslation()
+  const { isAdmin } = useAuth()
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
@@ -194,12 +196,14 @@ export default function WorkProcessList() {
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => setDeleteId(wp.id)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setDeleteId(wp.id)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

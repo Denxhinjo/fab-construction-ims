@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Upload, X, Camera } from 'lucide-react'
-import { productsApi, categoriesApi, locationsApi, suppliersApi, mediaUrl } from '../../services/api'
+import { productsApi, categoriesApi, locationsApi, suppliersApi, uploadsApi, mediaUrl } from '../../services/api'
 import type { Product, Category, Location, Supplier } from '../../types'
 import FormField from '../../components/ui/FormField'
 import Spinner from '../../components/ui/Spinner'
@@ -21,21 +21,14 @@ export default function AddEditProduct() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const uploadToCloudinary = async (file: File): Promise<string> => {
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('upload_preset', 'fab-ims-products')
-    fd.append('folder', 'fab-ims/products')
-    const res = await fetch('https://api.cloudinary.com/v1_1/dgtqh3jr/image/upload', {
-      method: 'POST',
-      body: fd,
-    })
-    const data = await res.json()
-    if (!res.ok || !data.secure_url) {
-      console.error('Cloudinary error:', data)
-      throw new Error(data?.error?.message ?? t('product.imageUploadFailed'))
+  const uploadImage = async (file: File): Promise<string> => {
+    try {
+      const res = await uploadsApi.image(file)
+      return res.data.url
+    } catch (err) {
+      console.error('Upload error:', err)
+      throw new Error(t('product.imageUploadFailed'))
     }
-    return data.secure_url
   }
 
   const [form, setForm] = useState({
@@ -134,7 +127,7 @@ export default function AddEditProduct() {
       try {
         setUploadingImage(true)
         toast.loading(t('product.uploadingImage'), { id: 'img-upload' })
-        imageUrl = await uploadToCloudinary(imageFile)
+        imageUrl = await uploadImage(imageFile)
         toast.dismiss('img-upload')
       } catch (err) {
         toast.dismiss('img-upload')
@@ -148,7 +141,11 @@ export default function AddEditProduct() {
     }
 
     const params = new URLSearchParams()
-    Object.entries(form).forEach(([k, v]) => { if (v !== '') params.append(k, v) })
+    Object.entries(form).forEach(([k, v]) => {
+      // Quantity is only settable on create -- once a product exists, the
+      // backend ignores it on update anyway, so don't even send it.
+      if (v !== '' && !(isEdit && k === 'quantity')) params.append(k, v)
+    })
     if (imageUrl) params.append('image_url', imageUrl)
     mutation.mutate(params)
   }
@@ -231,8 +228,22 @@ export default function AddEditProduct() {
               {t('product.stockPricing')}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <FormField label={t('product.currentQuantity')} required error={errors.quantity}>
-                <input className="input-base" type="number" step="any" min="0" value={form.quantity} onChange={set('quantity')} />
+              <FormField
+                label={t('product.currentQuantity')}
+                required={!isEdit}
+                error={errors.quantity}
+                hint={isEdit ? t('product.quantityEditHint') : undefined}
+              >
+                <input
+                  className="input-base disabled:bg-slate-50 disabled:text-slate-400"
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={form.quantity}
+                  onChange={set('quantity')}
+                  disabled={isEdit}
+                  title={isEdit ? t('product.quantityEditHint') : undefined}
+                />
               </FormField>
               <FormField label={t('product.unit')}>
                 <select className="input-base" value={form.unit} onChange={set('unit')}>

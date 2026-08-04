@@ -1,4 +1,4 @@
-import { Menu, Bell, LogOut, ChevronDown, Settings, Globe } from 'lucide-react'
+import { Menu, LogOut, ChevronDown, Globe } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
@@ -45,10 +45,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {i18n.language === 'sq' ? 'EN' : 'SQ'}
         </button>
 
-        <button className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
-          <Bell className="w-5 h-5 text-slate-600" />
-        </button>
-
         <div className="relative">
           <button
             onClick={() => setDropdownOpen((v) => !v)}
@@ -74,13 +70,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   <p className="text-sm font-semibold text-slate-700">{user?.full_name}</p>
                   <p className="text-xs text-slate-500">{user?.email}</p>
                 </div>
-                <button
-                  onClick={() => { setDropdownOpen(false); navigate('/users/' + user?.id) }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <Settings className="w-4 h-4 text-slate-400" />
-                  {t('common.accountSettings')}
-                </button>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"

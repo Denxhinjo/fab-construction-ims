@@ -9,6 +9,7 @@ from ..models.stock_movement import StockMovement
 from ..models.work_process import WorkProcess
 from ..models.user import User
 from ..dependencies import get_current_user
+from ..services.permissions import permitted_location_ids
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -16,30 +17,58 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 @router.get("/stats")
 def get_dashboard_stats(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    total_products = db.query(Product).count()
-    low_stock_products = db.query(Product).filter(
+    is_admin = current_user.role == "admin"
+    permitted = permitted_location_ids(current_user)
+
+    # Every count/sum/list below is scoped to the caller's permitted
+    # warehouses for non-admins -- nothing here should leak global totals or
+    # activity from a location a regular user hasn't been granted access to.
+    # Archived (soft-deleted) products are excluded from every stat here,
+    # same as they are from the normal product list.
+    product_query = db.query(Product).filter(Product.status != "archived")
+    wp_query = db.query(WorkProcess)
+    if not is_admin:
+        product_query = product_query.filter(Product.location_id.in_(permitted))
+        wp_query = wp_query.filter(WorkProcess.location_id.in_(permitted))
+
+    total_products = product_query.count()
+    low_stock_products = product_query.filter(
         Product.quantity <= Product.min_stock_level,
         Product.min_stock_level > 0,
     ).count()
-    total_locations = db.query(Location).filter(Location.is_active == True).count()
-    active_work_processes = db.query(WorkProcess).filter(
+    total_locations = (
+        db.query(Location).filter(Location.is_active == True).count()
+        if is_admin
+        else len(permitted)
+    )
+    active_work_processes = wp_query.filter(
         WorkProcess.status.in_(["Not Started", "Started", "In Process"])
     ).count()
-    completed_work_processes = db.query(WorkProcess).filter(
+    completed_work_processes = wp_query.filter(
         WorkProcess.status == "Done"
     ).count()
     total_users = db.query(User).filter(User.is_active == True).count()
 
-    total_inventory_value = db.query(
-        func.sum(Product.quantity * func.coalesce(Product.unit_price, 0))
-    ).scalar() or 0
+    total_inventory_value = (
+        product_query.with_entities(
+            func.sum(Product.quantity * func.coalesce(Product.unit_price, 0))
+        ).scalar()
+        or 0
+    )
+
+    def scoped_movements(query):
+        if is_admin:
+            return query
+        return query.join(Product, StockMovement.product_id == Product.id).filter(
+            Product.location_id.in_(permitted)
+        )
 
     # Recent activity (last 7 days)
     seven_days_ago = date.today() - timedelta(days=7)
     recent_movements = (
-        db.query(StockMovement)
+        scoped_movements(db.query(StockMovement))
         .filter(StockMovement.movement_date >= seven_days_ago)
         .order_by(StockMovement.created_at.desc())
         .limit(10)
@@ -63,12 +92,12 @@ def get_dashboard_stats(
 
     # Stock movement summary for the last 30 days
     thirty_days_ago = date.today() - timedelta(days=30)
-    stock_in_total = db.query(func.sum(StockMovement.quantity)).filter(
+    stock_in_total = scoped_movements(db.query(func.sum(StockMovement.quantity))).filter(
         StockMovement.movement_type == "Stock In",
         StockMovement.movement_date >= thirty_days_ago,
     ).scalar() or 0
 
-    stock_out_total = db.query(func.sum(StockMovement.quantity)).filter(
+    stock_out_total = scoped_movements(db.query(func.sum(StockMovement.quantity))).filter(
         StockMovement.movement_type == "Stock Out",
         StockMovement.movement_date >= thirty_days_ago,
     ).scalar() or 0
@@ -76,26 +105,27 @@ def get_dashboard_stats(
     # Prior 30-day window, so the frontend can show a trend delta rather
     # than a bare total with no point of comparison.
     sixty_days_ago = date.today() - timedelta(days=60)
-    stock_in_prev_total = db.query(func.sum(StockMovement.quantity)).filter(
+    stock_in_prev_total = scoped_movements(db.query(func.sum(StockMovement.quantity))).filter(
         StockMovement.movement_type == "Stock In",
         StockMovement.movement_date >= sixty_days_ago,
         StockMovement.movement_date < thirty_days_ago,
     ).scalar() or 0
 
-    stock_out_prev_total = db.query(func.sum(StockMovement.quantity)).filter(
+    stock_out_prev_total = scoped_movements(db.query(func.sum(StockMovement.quantity))).filter(
         StockMovement.movement_type == "Stock Out",
         StockMovement.movement_date >= sixty_days_ago,
         StockMovement.movement_date < thirty_days_ago,
     ).scalar() or 0
 
     # Top moved products (last 30 days) -- powers a "top products" bar chart
-    top_moved_rows = (
+    top_moved_query = scoped_movements(
         db.query(
             StockMovement.product_id,
             func.sum(StockMovement.quantity).label("total_qty"),
         )
-        .filter(StockMovement.movement_date >= thirty_days_ago)
-        .group_by(StockMovement.product_id)
+    ).filter(StockMovement.movement_date >= thirty_days_ago)
+    top_moved_rows = (
+        top_moved_query.group_by(StockMovement.product_id)
         .order_by(func.sum(StockMovement.quantity).desc())
         .limit(3)
         .all()
@@ -114,10 +144,10 @@ def get_dashboard_stats(
     # Movement counts this week vs last week, for a weekly-progress style card
     week_start = date.today() - timedelta(days=date.today().weekday())
     last_week_start = week_start - timedelta(days=7)
-    movements_this_week = db.query(StockMovement).filter(
+    movements_this_week = scoped_movements(db.query(StockMovement)).filter(
         StockMovement.movement_date >= week_start,
     ).count()
-    movements_last_week = db.query(StockMovement).filter(
+    movements_last_week = scoped_movements(db.query(StockMovement)).filter(
         StockMovement.movement_date >= last_week_start,
         StockMovement.movement_date < week_start,
     ).count()
@@ -125,11 +155,11 @@ def get_dashboard_stats(
     # Work processes by status
     wp_by_status = {}
     for stat in ["Not Started", "Started", "In Process", "Done"]:
-        count = db.query(WorkProcess).filter(WorkProcess.status == stat).count()
+        count = wp_query.filter(WorkProcess.status == stat).count()
         wp_by_status[stat] = count
 
     # Low stock items list
-    low_stock_items = db.query(Product).filter(
+    low_stock_items = product_query.filter(
         Product.quantity <= Product.min_stock_level,
         Product.min_stock_level > 0,
     ).order_by(Product.quantity.asc()).limit(5).all()

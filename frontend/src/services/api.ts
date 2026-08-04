@@ -68,6 +68,21 @@ export const authApi = {
     api.post('/auth/change-password', { old_password, new_password }),
 }
 
+// ─── Uploads ────────────────────────────────────────────────────────────────
+// Single upload path for the whole app: the backend holds the Cloudinary
+// credentials and an unsigned preset, not the client, and every upload goes
+// through normal auth instead of a client-side upload preset.
+export const uploadsApi = {
+  image: (file: File, folder: 'products' | 'work-processes' = 'products') => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('folder', folder)
+    return api.post<{ url: string }>('/uploads/image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+}
+
 // ─── Users ──────────────────────────────────────────────────────────────────
 export const usersApi = {
   list: () => api.get('/users'),

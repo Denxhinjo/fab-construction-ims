@@ -10,7 +10,10 @@ i18n
       sq: { translation: sq },
       en: { translation: en },
     },
-    lng: localStorage.getItem('lang') ?? 'sq',
+    // Default to English for first-time visitors -- Albanian stays fully
+    // supported and one toggle away, but a brand-new visitor shouldn't land
+    // on a non-English screen by default.
+    lng: localStorage.getItem('lang') ?? 'en',
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   })

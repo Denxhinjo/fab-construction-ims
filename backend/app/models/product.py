@@ -21,18 +21,20 @@ class Product(Base):
     image_url = Column(String(500), nullable=True)
     status = Column(String(30), default="active", nullable=False)
     notes = Column(Text, nullable=True)
+    # Soft-delete / archive fields. "Deleting" a product through the API sets
+    # status="archived" and stamps these rather than removing the row --
+    # stock movement history must survive a product being retired, which a
+    # hard delete (with its FK cascade) would otherwise destroy.
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+    archived_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     category = relationship("Category", back_populates="products")
     location = relationship("Location", back_populates="products")
     supplier = relationship("Supplier", back_populates="products")
-    stock_movements = relationship(
-        "StockMovement",
-        back_populates="product",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
+    archived_by = relationship("User", foreign_keys=[archived_by_id])
+    stock_movements = relationship("StockMovement", back_populates="product", lazy="dynamic")
     work_processes = relationship("WorkProcess", back_populates="product", lazy="dynamic")
 
     @property
