@@ -11,7 +11,7 @@ venv/
 env/
 
 # Alembic
-backend/alembic/versions/*.py
+backend/alembic/versions/__pycache__/
 
 # Media uploads
 backend/media/

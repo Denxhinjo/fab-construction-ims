@@ -7,6 +7,7 @@ from ..models.work_process import WorkProcess
 from ..schemas.work_process import WorkProcessCreate, WorkProcessUpdate, WorkProcessOut, WorkProcessListOut
 from ..dependencies import get_current_user, require_admin
 from ..models.user import User
+from ..services.permissions import require_location_access, scope_query_by_location
 
 router = APIRouter(prefix="/api/work-processes", tags=["work-processes"])
 
@@ -21,7 +22,7 @@ def list_work_processes(
     assigned_user_id: Optional[int] = None,
     location_id: Optional[int] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     query = db.query(WorkProcess)
     if search:
@@ -34,6 +35,11 @@ def list_work_processes(
         query = query.filter(WorkProcess.assigned_user_id == assigned_user_id)
     if location_id:
         query = query.filter(WorkProcess.location_id == location_id)
+
+    # Non-admins only see work processes tied to a warehouse they have
+    # access to -- one with no location at all is admin-only, since there's
+    # no permission grant that could cover it.
+    query = scope_query_by_location(query, WorkProcess, current_user)
 
     query = query.order_by(WorkProcess.created_at.desc())
     total = query.count()
@@ -51,8 +57,14 @@ def list_work_processes(
 def create_work_process(
     payload: WorkProcessCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    require_location_access(
+        current_user,
+        payload.location_id,
+        "You don't have permission to create work processes for this location",
+    )
+
     wp = WorkProcess(**payload.model_dump())
     db.add(wp)
     db.commit()
@@ -64,11 +76,12 @@ def create_work_process(
 def get_work_process(
     wp_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     wp = db.query(WorkProcess).filter(WorkProcess.id == wp_id).first()
     if not wp:
         raise HTTPException(status_code=404, detail="Work process not found")
+    require_location_access(current_user, wp.location_id, "You don't have access to this work process")
     return WorkProcessOut.model_validate(wp)
 
 
@@ -77,12 +90,22 @@ def update_work_process(
     wp_id: int,
     payload: WorkProcessUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     wp = db.query(WorkProcess).filter(WorkProcess.id == wp_id).first()
     if not wp:
         raise HTTPException(status_code=404, detail="Work process not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    require_location_access(current_user, wp.location_id, "You don't have access to this work process")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    if "location_id" in update_data:
+        require_location_access(
+            current_user,
+            update_data["location_id"],
+            "You don't have permission to move this work process to that location",
+        )
+
+    for field, value in update_data.items():
         setattr(wp, field, value)
     db.commit()
     db.refresh(wp)

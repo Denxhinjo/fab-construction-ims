@@ -14,12 +14,10 @@ import Spinner from '../../components/ui/Spinner'
 import Modal from '../../components/ui/Modal'
 import FormField from '../../components/ui/FormField'
 import toast from 'react-hot-toast'
-import { useAuth } from '../../context/AuthContext'
 
 export default function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { } = useAuth()
   const qc = useQueryClient()
   const { t } = useTranslation()
   const [movementModal, setMovementModal] = useState(false)

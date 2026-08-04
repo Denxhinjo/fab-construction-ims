@@ -1,6 +1,13 @@
 """
-Seed demo data for Fab Construction IMS.
-Run: python seed_data.py
+Seed demo/dev data for Fab Construction IMS.
+
+This is a manual, local/dev-only command -- it is NOT run automatically on
+container startup (that runs `alembic upgrade head` instead, which owns
+schema creation). Run it yourself when you want demo data in a dev database:
+
+    docker compose exec backend python seed_data.py
+
+Do not run this against a production database.
 """
 import sys
 import os
@@ -8,7 +15,7 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app.database import SessionLocal, engine, Base
+from app.database import SessionLocal
 from app.models import User, Location, Category, Supplier, Product, StockMovement, WorkProcess
 from passlib.context import CryptContext
 
@@ -16,16 +23,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def seed():
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
 
     try:
-        # This script runs on every container start, but it's only meant to
-        # populate a brand-new database. Once real usage has modified the
-        # data (e.g. products/movements deleted through the app), later
-        # sections here can no longer assume the original demo indices/counts
-        # line up, so skip entirely rather than seed a partial, mismatched
-        # dataset on top of a live database.
+        # Only meant to populate a brand-new database. Once real usage has
+        # modified the data (e.g. products/movements deleted through the
+        # app), later sections here can no longer assume the original demo
+        # indices/counts line up, so skip entirely rather than seed a
+        # partial, mismatched dataset on top of a live database.
         if db.query(User).count() > 0:
             print("Database already seeded -- skipping.")
             return

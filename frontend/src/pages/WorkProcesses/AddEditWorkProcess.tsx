@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Upload, X, Camera } from 'lucide-react'
 import { format } from 'date-fns'
-import { workProcessesApi, productsApi, locationsApi, usersApi, mediaUrl } from '../../services/api'
+import { workProcessesApi, productsApi, locationsApi, usersApi, uploadsApi, mediaUrl } from '../../services/api'
+import { useAuth } from '../../context/AuthContext'
 import type { WorkProcess, ProductListOut, Location, User } from '../../types'
 import FormField from '../../components/ui/FormField'
 import Spinner from '../../components/ui/Spinner'
@@ -30,6 +31,7 @@ export default function AddEditWorkProcess() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { t } = useTranslation()
+  const { isAdmin } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -51,9 +53,12 @@ export default function AddEditWorkProcess() {
     queryKey: ['locations'],
     queryFn: () => locationsApi.list().then((r) => r.data),
   })
+  // Admin-only endpoint -- a regular user opening this form would otherwise
+  // get an unhandled 403 just from the "assign user" dropdown loading.
   const { data: users } = useQuery<User[]>({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then((r) => r.data),
+    enabled: isAdmin,
   })
 
   useEffect(() => {
@@ -75,18 +80,13 @@ export default function AddEditWorkProcess() {
     }
   }, [wp, isEdit])
 
-  const uploadToCloudinary = async (file: File): Promise<string> => {
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('upload_preset', 'fab-ims-products')
-    fd.append('folder', 'fab-ims/work-processes')
-    const res = await fetch('https://api.cloudinary.com/v1_1/dgtqh3jr/image/upload', {
-      method: 'POST',
-      body: fd,
-    })
-    const data = await res.json()
-    if (!res.ok || !data.secure_url) throw new Error(data?.error?.message ?? t('workProcesses.imageUploadFailed'))
-    return data.secure_url
+  const uploadImage = async (file: File): Promise<string> => {
+    try {
+      const res = await uploadsApi.image(file, 'work-processes')
+      return res.data.url
+    } catch {
+      throw new Error(t('workProcesses.imageUploadFailed'))
+    }
   }
 
   const mutation = useMutation({
@@ -130,7 +130,7 @@ export default function AddEditWorkProcess() {
       try {
         setUploadingImage(true)
         toast.loading(t('workProcesses.uploadingImage'), { id: 'wp-img' })
-        imageUrl = await uploadToCloudinary(imageFile)
+        imageUrl = await uploadImage(imageFile)
         toast.dismiss('wp-img')
       } catch (err) {
         toast.dismiss('wp-img')
