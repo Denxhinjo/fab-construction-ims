@@ -36,3 +36,15 @@ Thumbs.db
 # Test coverage
 .coverage
 htmlcov/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.pdf
+*.tex
+*.synctex.gz
+
+# Dev logs
+frontend/vite-preview.log

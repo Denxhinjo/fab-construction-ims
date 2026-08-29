@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 import i18n from '../i18n'
 
 // In dev: VITE_API_URL is not set, so Vite proxy handles /api -> localhost:8000
-// In production on Render: VITE_API_URL = https://fab-ims-backend.onrender.com
+// In production (Vercel): set VITE_API_URL = https://<your-backend>.vercel.app in the frontend project env vars
 export const API_ORIGIN = import.meta.env.VITE_API_URL || ''
 
 const api = axios.create({

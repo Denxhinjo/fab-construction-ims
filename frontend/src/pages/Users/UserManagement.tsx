@@ -66,7 +66,7 @@ export default function UserManagement() {
     if (!createForm.email) e.email = t('users.emailRequired')
     if (!createForm.username) e.username = t('users.usernameRequired')
     if (!createForm.full_name) e.full_name = t('users.fullNameRequired')
-    if (!createForm.password || createForm.password.length < 6) e.password = t('users.passwordMinLength')
+    if (!createForm.password || createForm.password.length < 8) e.password = t('users.passwordMinLength')
     setErrors(e)
     return !Object.keys(e).length
   }

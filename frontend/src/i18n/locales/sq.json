@@ -269,7 +269,7 @@
     "username": "Emri i Përdoruesit",
     "email": "Email",
     "password": "Fjalëkalimi",
-    "passwordHint": "Min 6 karaktere",
+    "passwordHint": "Min 8 karaktere",
     "newPassword": "Fjalëkalim i Ri (lëreni bosh për të mbajtur aktualin)",
     "newPasswordPlaceholder": "Shkruani fjalëkalim të ri...",
     "phone": "Telefon",
@@ -286,7 +286,7 @@
     "emailRequired": "Email është i detyrueshëm",
     "usernameRequired": "Emri i përdoruesit është i detyrueshëm",
     "fullNameRequired": "Emri i plotë është i detyrueshëm",
-    "passwordMinLength": "Fjalëkalimi duhet të ketë të paktën 6 karaktere",
+    "passwordMinLength": "Fjalëkalimi duhet të ketë të paktën 8 karaktere",
     "statusActive": "Aktiv",
     "statusInactive": "Joaktiv"
   },
