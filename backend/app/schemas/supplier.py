@@ -10,6 +10,9 @@ class SupplierBase(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
+    tax_number: Optional[str] = None
+    payment_terms: Optional[str] = None
+    lead_time_days: Optional[int] = None
     notes: Optional[str] = None
 
 
@@ -24,6 +27,9 @@ class SupplierUpdate(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
+    tax_number: Optional[str] = None
+    payment_terms: Optional[str] = None
+    lead_time_days: Optional[int] = None
     notes: Optional[str] = None
     is_active: Optional[bool] = None
 

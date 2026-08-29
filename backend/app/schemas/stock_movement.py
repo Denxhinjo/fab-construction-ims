@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime, date
 from .product import ProductSummary
 from .user import UserSummary
+from ..models.stock_movement import MOVEMENT_TYPES
 
 
 class StockMovementBase(BaseModel):
@@ -13,13 +14,17 @@ class StockMovementBase(BaseModel):
     movement_date: date
     notes: Optional[str] = None
     reference_number: Optional[str] = None
+    source_location_id: Optional[int] = None
+    destination_location_id: Optional[int] = None
+    project_id: Optional[int] = None
+    purchase_order_id: Optional[int] = None
+    transfer_id: Optional[int] = None
 
     @field_validator("movement_type")
     @classmethod
     def valid_type(cls, v: str) -> str:
-        allowed = ("Stock In", "Stock Out", "Adjustment")
-        if v not in allowed:
-            raise ValueError(f"movement_type must be one of: {allowed}")
+        if v not in MOVEMENT_TYPES:
+            raise ValueError(f"movement_type must be one of: {', '.join(MOVEMENT_TYPES)}")
         return v
 
     @field_validator("quantity")
@@ -39,6 +44,8 @@ class StockMovementOut(StockMovementBase):
     previous_quantity: Optional[float] = None
     new_quantity: Optional[float] = None
     user_id: int
+    approved_by_id: Optional[int] = None
+    received_by_id: Optional[int] = None
     product: Optional[ProductSummary] = None
     user: Optional[UserSummary] = None
     created_at: datetime

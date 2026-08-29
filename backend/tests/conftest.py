@@ -72,7 +72,7 @@ def make_user(db_session, *, email, username, role="user", full_name="Test User"
 
 
 def auth_headers(user: User) -> dict:
-    token = create_access_token(user.id)
+    token = create_access_token(user.id, user.hashed_password[:8])
     return {"Authorization": f"Bearer {token}"}
 
 

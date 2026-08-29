@@ -30,7 +30,7 @@ const dotColors: Record<Variant, string> = {
   gray:    'bg-slate-400',
 }
 
-export default function Badge({ variant = 'default', children, className = '', dot }: BadgeProps) {
+export function Badge({ variant = 'default', children, className = '', dot }: BadgeProps) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${variantClasses[variant]} ${className}`}
@@ -40,6 +40,8 @@ export default function Badge({ variant = 'default', children, className = '', d
     </span>
   )
 }
+
+export default Badge
 
 // Helpers for common domain statuses
 export function StatusBadge({ status }: { status: string }) {

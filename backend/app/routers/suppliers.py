@@ -99,5 +99,11 @@ def delete_supplier(
     sup = db.query(Supplier).filter(Supplier.id == supplier_id).first()
     if not sup:
         raise HTTPException(status_code=404, detail="Supplier not found")
+    product_count = db.query(Product).filter(Product.supplier_id == sup.id).count()
+    if product_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete supplier with {product_count} linked product(s). Deactivate instead.",
+        )
     db.delete(sup)
     db.commit()

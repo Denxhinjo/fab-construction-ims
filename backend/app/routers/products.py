@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/products", tags=["products"])
 @router.get("", response_model=ProductListOut)
 def list_products(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     search: Optional[str] = None,
     category_id: Optional[int] = None,
     location_id: Optional[int] = None,

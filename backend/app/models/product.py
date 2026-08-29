@@ -15,16 +15,17 @@ class Product(Base):
     quantity = Column(Float, default=0, nullable=False)
     unit = Column(String(50), default="pcs", nullable=False)
     min_stock_level = Column(Float, default=0, nullable=False)
-    unit_price = Column(Float, default=0, nullable=True)
+    reorder_quantity = Column(Float, default=0, nullable=True)
+    unit_price = Column(Float, nullable=True)
+    latest_cost = Column(Float, nullable=True)
+    avg_cost = Column(Float, nullable=True)
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
+    brand = Column(String(100), nullable=True)
+    barcode = Column(String(100), nullable=True, index=True)
     image_url = Column(String(500), nullable=True)
     status = Column(String(30), default="active", nullable=False)
     notes = Column(Text, nullable=True)
-    # Soft-delete / archive fields. "Deleting" a product through the API sets
-    # status="archived" and stamps these rather than removing the row --
-    # stock movement history must survive a product being retired, which a
-    # hard delete (with its FK cascade) would otherwise destroy.
     archived_at = Column(DateTime(timezone=True), nullable=True)
     archived_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -36,6 +37,9 @@ class Product(Base):
     archived_by = relationship("User", foreign_keys=[archived_by_id])
     stock_movements = relationship("StockMovement", back_populates="product", lazy="dynamic")
     work_processes = relationship("WorkProcess", back_populates="product", lazy="dynamic")
+    location_stocks = relationship("ProductStock", back_populates="product", cascade="all, delete-orphan")
+    transfer_items = relationship("WarehouseTransferItem", back_populates="product")
+    po_items = relationship("PurchaseOrderItem", back_populates="product")
 
     @property
     def is_low_stock(self) -> bool:
