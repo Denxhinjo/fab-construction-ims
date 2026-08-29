@@ -15,6 +15,7 @@ class ProductBase(BaseModel):
     unit: str = "pcs"
     min_stock_level: float = 0
     unit_price: Optional[float] = None
+    price_currency: str = "ALL"
     location_id: Optional[int] = None
     supplier_id: Optional[int] = None
     status: str = "active"
@@ -24,6 +25,8 @@ class ProductBase(BaseModel):
 class ProductOut(ProductBase):
     id: int
     image_url: Optional[str] = None
+    image_url_2: Optional[str] = None
+    image_url_3: Optional[str] = None
     is_low_stock: bool = False
     archived_at: Optional[datetime] = None
     archived_by_id: Optional[int] = None

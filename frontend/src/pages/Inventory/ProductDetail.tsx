@@ -96,6 +96,7 @@ export default function ProductDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Image & quick stats */}
         <div className="space-y-4">
+          {/* Primary image */}
           <div className="card overflow-hidden aspect-square">
             {product.image_url ? (
               <img src={mediaUrl(product.image_url)} alt={product.name} className="w-full h-full object-cover" />
@@ -106,6 +107,18 @@ export default function ProductDetail() {
               </div>
             )}
           </div>
+          {/* Secondary images */}
+          {(product.image_url_2 || product.image_url_3) && (
+            <div className="grid grid-cols-2 gap-2">
+              {[product.image_url_2, product.image_url_3].map((url, i) =>
+                url ? (
+                  <div key={i} className="card overflow-hidden aspect-square">
+                    <img src={mediaUrl(url)} alt={`${product.name} ${i + 2}`} className="w-full h-full object-cover" />
+                  </div>
+                ) : null
+              )}
+            </div>
+          )}
 
           {/* Stock level card */}
           <div className={`card p-5 ${product.is_low_stock ? 'border-red-200 bg-red-50' : ''}`}>
@@ -117,7 +130,9 @@ export default function ProductDetail() {
             <div className="mt-3 pt-3 border-t border-slate-200">
               <div className="flex justify-between text-xs text-slate-500">
                 <span>{t('productDetail.minLevel')} {product.min_stock_level} {product.unit}</span>
-                {product.unit_price && <span>${product.unit_price.toFixed(2)}/unit</span>}
+                {product.unit_price && (
+                  <span>{product.price_currency === 'EUR' ? '€' : 'L'}{product.unit_price.toFixed(2)}/unit</span>
+                )}
               </div>
               {product.min_stock_level > 0 && (
                 <div className="mt-2 h-2 bg-slate-200 rounded-full overflow-hidden">

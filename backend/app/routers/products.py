@@ -79,6 +79,9 @@ def create_product(
     product_status: str = Form("active"),
     notes: Optional[str] = Form(None),
     image_url: Optional[str] = Form(None),
+    image_url_2: Optional[str] = Form(None),
+    image_url_3: Optional[str] = Form(None),
+    price_currency: str = Form("ALL"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -94,8 +97,10 @@ def create_product(
     product = Product(
         name=name, sku=sku, category_id=category_id, description=description,
         quantity=quantity, unit=unit, min_stock_level=min_stock_level,
-        unit_price=unit_price, location_id=location_id, supplier_id=supplier_id,
-        status=product_status, notes=notes, image_url=image_url,
+        unit_price=unit_price, price_currency=price_currency,
+        location_id=location_id, supplier_id=supplier_id,
+        status=product_status, notes=notes,
+        image_url=image_url, image_url_2=image_url_2, image_url_3=image_url_3,
     )
     db.add(product)
     db.commit()
@@ -132,6 +137,9 @@ def update_product(
     product_status: Optional[str] = Form(None),
     notes: Optional[str] = Form(None),
     image_url: Optional[str] = Form(None),
+    image_url_2: Optional[str] = Form(None),
+    image_url_3: Optional[str] = Form(None),
+    price_currency: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -157,11 +165,16 @@ def update_product(
 
     if image_url:
         product.image_url = image_url
+    if image_url_2 is not None:
+        product.image_url_2 = image_url_2 or None
+    if image_url_3 is not None:
+        product.image_url_3 = image_url_3 or None
 
     fields = {
         "name": name, "sku": sku, "category_id": category_id,
         "description": description, "unit": unit,
         "min_stock_level": min_stock_level, "unit_price": unit_price,
+        "price_currency": price_currency,
         "location_id": location_id, "supplier_id": supplier_id,
         "status": product_status, "notes": notes,
     }
