@@ -14,7 +14,7 @@ const ADMIN_ROLES = new Set(['admin'])
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { t } = useTranslation()
-  const { isAdmin, user } = useAuth()
+  const { user } = useAuth()
   const location = useLocation()
 
   const role = user?.role ?? 'user'
