@@ -269,7 +269,7 @@
     "username": "Username",
     "email": "Email",
     "password": "Password",
-    "passwordHint": "Min 6 characters",
+    "passwordHint": "Min 8 characters",
     "newPassword": "New Password (leave blank to keep current)",
     "newPasswordPlaceholder": "Enter new password...",
     "phone": "Phone",
@@ -286,7 +286,7 @@
     "emailRequired": "Email required",
     "usernameRequired": "Username required",
     "fullNameRequired": "Full name required",
-    "passwordMinLength": "Password must be at least 6 characters",
+    "passwordMinLength": "Password must be at least 8 characters",
     "statusActive": "Active",
     "statusInactive": "Inactive"
   },
