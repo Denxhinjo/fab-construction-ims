@@ -22,6 +22,8 @@ jobs:
           cache-dependency-path: backend/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - run: pytest -q
+        env:
+          SECRET_KEY: ci-test-secret-key-not-used-in-prod
 
   frontend:
     name: Frontend lint, build, test
