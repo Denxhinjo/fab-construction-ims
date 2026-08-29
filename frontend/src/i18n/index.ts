@@ -10,7 +10,7 @@ i18n
       sq: { translation: sq },
       en: { translation: en },
     },
-    lng: localStorage.getItem('lang') ?? 'sq',
+    lng: localStorage.getItem('lang_v2') ?? 'sq',
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   })

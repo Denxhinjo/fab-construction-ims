@@ -22,7 +22,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const toggleLang = () => {
     const next = i18n.language === 'sq' ? 'en' : 'sq'
     i18n.changeLanguage(next)
-    localStorage.setItem('lang', next)
+    localStorage.setItem('lang_v2', next)
   }
 
   return (
