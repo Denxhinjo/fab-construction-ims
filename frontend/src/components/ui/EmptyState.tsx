@@ -1,11 +1,17 @@
 import { PackageSearch } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+interface ActionObject { label: string; onClick: () => void }
+
 interface EmptyStateProps {
   icon?: ReactNode
   title: string
   description?: string
-  action?: ReactNode
+  action?: ReactNode | ActionObject
+}
+
+function isActionObject(a: unknown): a is ActionObject {
+  return typeof a === 'object' && a !== null && 'label' in a && 'onClick' in a
 }
 
 export default function EmptyState({ icon, title, description, action }: EmptyStateProps) {
@@ -16,7 +22,9 @@ export default function EmptyState({ icon, title, description, action }: EmptySt
       </div>
       <h3 className="text-base font-semibold text-slate-700 mb-1">{title}</h3>
       {description && <p className="text-sm text-slate-500 max-w-sm mb-4">{description}</p>}
-      {action}
+      {isActionObject(action)
+        ? <button onClick={action.onClick} className="btn-primary text-sm">{action.label}</button>
+        : action}
     </div>
   )
 }
