@@ -122,6 +122,9 @@ export interface Product {
   brand?: string
   barcode?: string
   image_url?: string
+  image_url_2?: string
+  image_url_3?: string
+  price_currency?: string
   status: string
   notes?: string
   is_low_stock: boolean

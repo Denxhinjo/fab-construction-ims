@@ -9,27 +9,36 @@ import FormField from '../../components/ui/FormField'
 import Spinner from '../../components/ui/Spinner'
 import toast from 'react-hot-toast'
 
+const MAX_IMAGES = 3
+const CURRENCIES = [
+  { value: 'ALL', label: 'ALL — Albanian Lek' },
+  { value: 'EUR', label: 'EUR — Euro' },
+]
+
+interface ImageSlot {
+  preview: string | null   // object URL or existing URL
+  file: File | null        // new file to upload (null = keep existing)
+  existingUrl: string | null
+}
+
+function emptySlot(): ImageSlot {
+  return { preview: null, file: null, existingUrl: null }
+}
+
 export default function AddEditProduct() {
   const { id } = useParams()
   const isEdit = !!id
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { t } = useTranslation()
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [uploadingImage, setUploadingImage] = useState(false)
+  const fileRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ]
+  const [slots, setSlots] = useState<ImageSlot[]>([emptySlot(), emptySlot(), emptySlot()])
+  const [uploading, setUploading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-
-  const uploadImage = async (file: File): Promise<string> => {
-    try {
-      const res = await uploadsApi.image(file)
-      return res.data.url
-    } catch (err) {
-      console.error('Upload error:', err)
-      throw new Error(t('product.imageUploadFailed'))
-    }
-  }
 
   const [form, setForm] = useState({
     name: '',
@@ -40,6 +49,7 @@ export default function AddEditProduct() {
     unit: 'pcs',
     min_stock_level: '0',
     unit_price: '',
+    price_currency: 'ALL',
     location_id: '',
     supplier_id: '',
     product_status: 'active',
@@ -76,14 +86,25 @@ export default function AddEditProduct() {
         unit: product.unit,
         min_stock_level: product.min_stock_level.toString(),
         unit_price: product.unit_price?.toString() ?? '',
+        price_currency: product.price_currency ?? 'ALL',
         location_id: product.location_id?.toString() ?? '',
         supplier_id: product.supplier_id?.toString() ?? '',
         product_status: product.status,
         notes: product.notes ?? '',
       })
-      if (product.image_url) setPreview(mediaUrl(product.image_url) ?? null)
+      const urls = [product.image_url, product.image_url_2, product.image_url_3]
+      setSlots(urls.map(u => ({
+        preview: u ? (mediaUrl(u) ?? null) : null,
+        file: null,
+        existingUrl: u ?? null,
+      })))
     }
   }, [product, isEdit])
+
+  const uploadOne = async (file: File): Promise<string> => {
+    const res = await uploadsApi.image(file)
+    return res.data.url
+  }
 
   const mutation = useMutation({
     mutationFn: (params: URLSearchParams) =>
@@ -96,13 +117,10 @@ export default function AddEditProduct() {
     },
     onError: (err: { response?: { data?: { detail?: unknown } } }) => {
       const detail = err?.response?.data?.detail
-      if (typeof detail === 'string') {
-        toast.error(detail)
-      } else if (Array.isArray(detail)) {
-        const msg = detail.map((d: { msg?: string; loc?: string[] }) =>
-          `${d.loc?.slice(-1)[0] ?? 'field'}: ${d.msg ?? 'error'}`
-        ).join(', ')
-        toast.error(`Validation: ${msg}`)
+      if (typeof detail === 'string') toast.error(detail)
+      else if (Array.isArray(detail)) {
+        toast.error(detail.map((d: { msg?: string; loc?: string[] }) =>
+          `${d.loc?.slice(-1)[0] ?? 'field'}: ${d.msg ?? 'error'}`).join(', '))
       } else {
         toast.error(t('product.failedToSave'))
       }
@@ -122,47 +140,60 @@ export default function AddEditProduct() {
     e.preventDefault()
     if (!validate()) return
 
-    let imageUrl: string | null = null
-    if (imageFile) {
-      try {
-        setUploadingImage(true)
-        toast.loading(t('product.uploadingImage'), { id: 'img-upload' })
-        imageUrl = await uploadImage(imageFile)
-        toast.dismiss('img-upload')
-      } catch (err) {
-        toast.dismiss('img-upload')
-        const msg = err instanceof Error ? err.message : t('product.imageUploadFailed')
-        toast.error(`${t('product.imageUploadFailed')}: ${msg}`)
-        setUploadingImage(false)
-        return
-      } finally {
-        setUploadingImage(false)
+    setUploading(true)
+    const toastId = 'img-upload'
+    const resolvedUrls: (string | null)[] = []
+
+    try {
+      for (const slot of slots) {
+        if (slot.file) {
+          toast.loading(t('product.uploadingImage'), { id: toastId })
+          const url = await uploadOne(slot.file)
+          resolvedUrls.push(url)
+        } else {
+          resolvedUrls.push(slot.existingUrl)
+        }
       }
+    } catch {
+      toast.dismiss(toastId)
+      toast.error(t('product.imageUploadFailed'))
+      setUploading(false)
+      return
     }
+    toast.dismiss(toastId)
+    setUploading(false)
 
     const params = new URLSearchParams()
     Object.entries(form).forEach(([k, v]) => {
-      // Quantity is only settable on create -- once a product exists, the
-      // backend ignores it on update anyway, so don't even send it.
       if (v !== '' && !(isEdit && k === 'quantity')) params.append(k, v)
     })
-    if (imageUrl) params.append('image_url', imageUrl)
+    const urlKeys = ['image_url', 'image_url_2', 'image_url_3'] as const
+    resolvedUrls.forEach((url, i) => {
+      if (url) params.append(urlKeys[i], url)
+    })
     mutation.mutate(params)
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (idx: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowed.includes(file.type)) { toast.error('Only JPEG, PNG, WebP or GIF images allowed'); return }
+    if (!allowed.includes(file.type)) { toast.error('Only JPEG, PNG, WebP or GIF'); return }
     if (file.size > 10 * 1024 * 1024) { toast.error('Image must be under 10MB'); return }
-    setImageFile(file)
-    setPreview(URL.createObjectURL(file))
+    setSlots(prev => prev.map((s, i) =>
+      i === idx ? { ...s, file, preview: URL.createObjectURL(file) } : s
+    ))
+  }
+
+  const clearSlot = (idx: number) => {
+    setSlots(prev => prev.map((s, i) => i === idx ? emptySlot() : s))
   }
 
   const set = (field: string) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => setForm((f) => ({ ...f, [field]: e.target.value }))
+
+  const currencySymbol = form.price_currency === 'EUR' ? '€' : 'L'
 
   if (isEdit && loadingProduct) {
     return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
@@ -170,7 +201,6 @@ export default function AddEditProduct() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="btn-secondary py-2 px-3">
           <ArrowLeft className="w-4 h-4" />
@@ -255,8 +285,30 @@ export default function AddEditProduct() {
               <FormField label={t('product.minStockLevel')} error={errors.min_stock_level}>
                 <input className="input-base" type="number" step="any" min="0" value={form.min_stock_level} onChange={set('min_stock_level')} />
               </FormField>
-              <FormField label={t('product.unitPrice')}>
-                <input className="input-base" type="number" step="0.01" min="0" value={form.unit_price} onChange={set('unit_price')} placeholder="0.00" />
+            </div>
+
+            {/* Price + currency on the same row */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label={t('product.currency')}>
+                <select className="input-base" value={form.price_currency} onChange={set('price_currency')}>
+                  {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </FormField>
+              <FormField label={`${t('product.unitPrice')} (${currencySymbol})`}>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium select-none">
+                    {currencySymbol}
+                  </span>
+                  <input
+                    className="input-base pl-7"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.unit_price}
+                    onChange={set('unit_price')}
+                    placeholder="0.00"
+                  />
+                </div>
               </FormField>
             </div>
           </div>
@@ -285,47 +337,62 @@ export default function AddEditProduct() {
           </div>
         </div>
 
-        {/* Sidebar: image upload + actions */}
+        {/* Sidebar: images + actions */}
         <div className="space-y-4">
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-700 mb-4">{t('product.productImage')}</h2>
-            <div
-              className="relative aspect-square rounded-xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center cursor-pointer hover:border-brand-400 transition-colors group"
-              onClick={() => fileRef.current?.click()}
-            >
-              {preview ? (
-                <>
-                  <img src={preview} alt="Preview" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Camera className="w-8 h-8 text-white" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setPreview(null); setImageFile(null) }}
-                    className="absolute top-2 right-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
+            <h2 className="text-sm font-semibold text-slate-700 mb-1">{t('product.productImages')}</h2>
+            <p className="text-xs text-slate-400 mb-4">{t('product.uploadHintMulti')}</p>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {slots.map((slot, idx) => (
+                <div key={idx}>
+                  <div
+                    className="relative aspect-square rounded-xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center cursor-pointer hover:border-brand-400 transition-colors group"
+                    onClick={() => fileRefs[idx].current?.click()}
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <div className="text-center p-4">
-                  <Upload className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs text-slate-500 font-medium">{t('product.uploadImage')}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{t('product.uploadHint')}</p>
+                    {slot.preview ? (
+                      <>
+                        <img src={slot.preview} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Camera className="w-5 h-5 text-white" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); clearSlot(idx) }}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </>
+                    ) : (
+                      <div className="text-center p-2">
+                        <Upload className="w-5 h-5 text-slate-300 mx-auto mb-1" />
+                        <p className="text-[10px] text-slate-400">{idx + 1}</p>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileRefs[idx]}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange(idx)}
+                  />
                 </div>
-              )}
+              ))}
             </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+            <p className="text-xs text-slate-400">{t('product.uploadHint')}</p>
           </div>
 
           <div className="card p-5 space-y-3">
             <button
               type="submit"
-              disabled={mutation.isPending || uploadingImage}
+              disabled={mutation.isPending || uploading}
               className="w-full btn-primary justify-center"
             >
-              {mutation.isPending ? <Spinner size="sm" /> : null}
-              {mutation.isPending ? t('product.saving') : isEdit ? t('product.saveChanges') : t('product.create')}
+              {mutation.isPending || uploading ? <Spinner size="sm" /> : null}
+              {mutation.isPending || uploading
+                ? t('product.saving')
+                : isEdit ? t('product.saveChanges') : t('product.create')}
             </button>
             <button
               type="button"
