@@ -3,25 +3,34 @@ import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard, Package, MapPin, ClipboardList,
   Users, BarChart3, HardHat, ChevronRight, X, Truck,
+  FolderOpen, ArrowLeftRight, ShoppingCart,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 interface SidebarProps { open: boolean; onClose: () => void }
+
+const PROCUREMENT_ROLES = new Set(['admin', 'procurement', 'warehouse_manager'])
+const ADMIN_ROLES = new Set(['admin'])
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { t } = useTranslation()
   const { isAdmin, user } = useAuth()
   const location = useLocation()
 
+  const role = user?.role ?? 'user'
+
   const navItems = [
-    { to: '/dashboard',      icon: LayoutDashboard, label: t('nav.dashboard')      },
-    { to: '/inventory',      icon: Package,         label: t('nav.inventory')       },
-    { to: '/locations',      icon: MapPin,          label: t('nav.locations')       },
-    { to: '/work-processes', icon: ClipboardList,   label: t('nav.workProcesses')   },
-    { to: '/suppliers',      icon: Truck,            label: t('nav.suppliers')       },
-    { to: '/reports',        icon: BarChart3,        label: t('nav.reports')         },
-    ...(isAdmin ? [{ to: '/users', icon: Users, label: t('nav.users') }] : []),
-  ]
+    { to: '/dashboard',      icon: LayoutDashboard, label: t('nav.dashboard'),      always: true },
+    { to: '/inventory',      icon: Package,         label: t('nav.inventory'),       always: true },
+    { to: '/locations',      icon: MapPin,          label: t('nav.locations'),       always: true },
+    { to: '/work-processes', icon: ClipboardList,   label: t('nav.workProcesses'),   always: true },
+    { to: '/projects',       icon: FolderOpen,      label: t('nav.projects'),        always: true },
+    { to: '/transfers',      icon: ArrowLeftRight,  label: t('nav.transfers'),       always: true },
+    { to: '/purchase-orders',icon: ShoppingCart,    label: t('nav.purchaseOrders'), show: PROCUREMENT_ROLES.has(role) },
+    { to: '/suppliers',      icon: Truck,           label: t('nav.suppliers'),       always: true },
+    { to: '/reports',        icon: BarChart3,       label: t('nav.reports'),         always: true },
+    { to: '/users',          icon: Users,           label: t('nav.users'),           show: ADMIN_ROLES.has(role) },
+  ].filter(item => item.always || item.show)
 
   return (
     <>
@@ -71,9 +80,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             </div>
             <div className="min-w-0">
               <p className="text-white text-sm font-medium truncate">{user?.full_name}</p>
-              <p className="text-slate-400 text-xs capitalize">
-                {user?.role === 'admin' ? t('nav.users').slice(0, -1) : t('common.active')}
-              </p>
+              <p className="text-slate-400 text-xs capitalize">{role}</p>
             </div>
           </div>
         </div>

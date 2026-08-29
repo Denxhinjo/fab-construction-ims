@@ -9,12 +9,16 @@ export interface AuthToken {
 }
 
 // User
+export type UserRole =
+  | 'admin' | 'user' | 'procurement' | 'warehouse_manager'
+  | 'warehouse_worker' | 'project_manager' | 'finance' | 'viewer'
+
 export interface User {
   id: number
   email: string
   username: string
   full_name: string
-  role: 'admin' | 'user'
+  role: UserRole
   is_active: boolean
   phone?: string
   avatar_url?: string
@@ -22,12 +26,19 @@ export interface User {
   updated_at: string
 }
 
+export interface UserSummary {
+  id: number
+  full_name: string
+  email: string
+  role: string
+}
+
 export interface UserCreate {
   email: string
   username: string
   full_name: string
   password: string
-  role: 'admin' | 'user'
+  role: UserRole
   phone?: string
 }
 
@@ -67,6 +78,12 @@ export interface Location {
   updated_at: string
 }
 
+export interface LocationSummary {
+  id: number
+  name: string
+  city?: string
+}
+
 // Supplier
 export interface Supplier {
   id: number
@@ -76,6 +93,9 @@ export interface Supplier {
   phone?: string
   address?: string
   city?: string
+  tax_number?: string
+  payment_terms?: string
+  lead_time_days?: number
   notes?: string
   is_active: boolean
   product_count: number
@@ -93,9 +113,14 @@ export interface Product {
   quantity: number
   unit: string
   min_stock_level: number
+  reorder_quantity?: number
   unit_price?: number
+  latest_cost?: number
+  avg_cost?: number
   location_id?: number
   supplier_id?: number
+  brand?: string
+  barcode?: string
   image_url?: string
   status: string
   notes?: string
@@ -107,6 +132,14 @@ export interface Product {
   updated_at: string
 }
 
+export interface ProductSummary {
+  id: number
+  name: string
+  sku?: string
+  quantity: number
+  unit: string
+}
+
 export interface ProductListOut {
   items: Product[]
   total: number
@@ -116,10 +149,16 @@ export interface ProductListOut {
 }
 
 // Stock Movement
+export type MovementType =
+  | 'Stock In' | 'Stock Out' | 'Adjustment'
+  | 'Purchase Receipt' | 'Warehouse Transfer Out' | 'Warehouse Transfer In'
+  | 'Project Issue' | 'Project Return' | 'Supplier Return'
+  | 'Adjustment In' | 'Adjustment Out' | 'Opening Balance'
+
 export interface StockMovement {
   id: number
   product_id: number
-  movement_type: 'Stock In' | 'Stock Out' | 'Adjustment'
+  movement_type: MovementType
   quantity: number
   previous_quantity?: number
   new_quantity?: number
@@ -128,8 +167,15 @@ export interface StockMovement {
   movement_date: string
   notes?: string
   reference_number?: string
-  product?: { id: number; name: string; sku?: string; quantity: number; unit: string }
-  user?: { id: number; full_name: string; email: string; role: string }
+  source_location_id?: number
+  destination_location_id?: number
+  project_id?: number
+  purchase_order_id?: number
+  transfer_id?: number
+  approved_by_id?: number
+  received_by_id?: number
+  product?: ProductSummary
+  user?: UserSummary
   created_at: string
 }
 
@@ -143,12 +189,15 @@ export interface StockMovementListOut {
 
 export interface StockMovementCreate {
   product_id: number
-  movement_type: 'Stock In' | 'Stock Out' | 'Adjustment'
+  movement_type: MovementType
   quantity: number
   reason?: string
   movement_date: string
   notes?: string
   reference_number?: string
+  source_location_id?: number
+  destination_location_id?: number
+  project_id?: number
 }
 
 // Work Process
@@ -169,15 +218,135 @@ export interface WorkProcess {
   completion_date?: string
   notes?: string
   image_url?: string
-  product?: { id: number; name: string; sku?: string; quantity: number; unit: string }
-  assigned_user?: { id: number; full_name: string; email: string; role: string }
-  location?: { id: number; name: string; city?: string }
+  product?: ProductSummary
+  assigned_user?: UserSummary
+  location?: LocationSummary
   created_at: string
   updated_at: string
 }
 
 export interface WorkProcessListOut {
   items: WorkProcess[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+// Project
+export type ProjectStatus = 'PLANNED' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED'
+
+export interface Project {
+  id: number
+  code: string
+  name: string
+  client?: string
+  address?: string
+  city?: string
+  status: ProjectStatus
+  start_date?: string
+  end_date?: string
+  project_manager_id?: number
+  notes?: string
+  is_active: boolean
+  project_manager?: UserSummary
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectListOut {
+  items: Project[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+// Warehouse Transfer
+export type TransferStatus =
+  | 'DRAFT' | 'PENDING' | 'APPROVED' | 'DISPATCHED' | 'IN_TRANSIT' | 'RECEIVED' | 'CANCELLED'
+
+export interface TransferItem {
+  id: number
+  product_id: number
+  quantity: number
+  received_quantity: number
+  notes?: string
+  product?: ProductSummary
+}
+
+export interface WarehouseTransfer {
+  id: number
+  reference: string
+  source_location_id: number
+  destination_location_id: number
+  status: TransferStatus
+  notes?: string
+  requested_by_id: number
+  approved_by_id?: number
+  dispatched_by_id?: number
+  received_by_id?: number
+  approved_at?: string
+  dispatched_at?: string
+  received_at?: string
+  created_at: string
+  updated_at: string
+  source_location?: LocationSummary
+  destination_location?: LocationSummary
+  requested_by?: UserSummary
+  approved_by?: UserSummary
+  items: TransferItem[]
+}
+
+export interface WarehouseTransferListOut {
+  items: WarehouseTransfer[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+// Purchase Order
+export type POStatus =
+  | 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'SENT'
+  | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED'
+
+export interface POItem {
+  id: number
+  product_id?: number
+  description?: string
+  quantity: number
+  received_quantity: number
+  unit_cost?: number
+  unit: string
+  product?: ProductSummary
+}
+
+export interface PurchaseOrder {
+  id: number
+  po_number: string
+  supplier_id: number
+  destination_location_id: number
+  status: POStatus
+  order_date: string
+  expected_delivery_date?: string
+  notes?: string
+  total_amount: number
+  currency: string
+  created_by_id: number
+  approved_by_id?: number
+  approved_at?: string
+  created_at: string
+  updated_at: string
+  supplier?: { id: number; name: string }
+  destination_location?: LocationSummary
+  created_by?: UserSummary
+  approved_by?: UserSummary
+  items: POItem[]
+}
+
+export interface PurchaseOrderListOut {
+  items: PurchaseOrder[]
   total: number
   page: number
   page_size: number
@@ -194,6 +363,9 @@ export interface DashboardStats {
     completed_work_processes: number
     total_users: number
     total_inventory_value: number
+    active_projects: number
+    pending_transfers: number
+    open_purchase_orders: number
   }
   stock_summary: {
     stock_in_30d: number
@@ -220,6 +392,14 @@ export interface DashboardStats {
     unit: string
     location?: string
   }>
+  top_moved_products?: Array<{
+    id: number
+    name: string
+    quantity: number
+    unit: string
+  }>
+  movements_this_week?: number
+  movements_last_week?: number
 }
 
 // Generic paginated list params

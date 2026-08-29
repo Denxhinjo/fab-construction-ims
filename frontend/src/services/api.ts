@@ -14,9 +14,7 @@ const api = axios.create({
 // Prefix media file paths with the backend origin for production
 export function mediaUrl(path: string | null | undefined): string | undefined {
   if (!path) return undefined
-  // Cloudinary and other absolute URLs — return as-is
   if (path.startsWith('http://') || path.startsWith('https://')) return path
-  // Relative paths (legacy local media) — prefix with backend origin
   return `${API_ORIGIN}${path}`
 }
 
@@ -41,11 +39,21 @@ api.interceptors.response.use(
     } else if (status === 403) {
       toast.error(i18n.t('common.accessDenied'))
     } else if (status === 422) {
-      toast.error(i18n.t('common.validationError'))
+      // Show field-level validation messages when available
+      const body = error?.response?.data
+      if (body?.detail && Array.isArray(body.detail)) {
+        const msgs = body.detail.map((e: { msg: string }) => e.msg).join('; ')
+        toast.error(msgs || i18n.t('common.validationError'))
+      } else if (typeof body?.detail === 'string') {
+        toast.error(body.detail)
+      } else {
+        toast.error(i18n.t('common.validationError'))
+      }
     } else if (status >= 500) {
       toast.error(i18n.t('common.serverError'))
-    } else if (detail) {
-      // Let individual callers handle 400/404 errors
+    } else if (detail && typeof detail === 'string') {
+      // Let individual callers handle 400/404 but show a useful toast
+      toast.error(detail)
     }
     return Promise.reject(error)
   },
@@ -69,9 +77,6 @@ export const authApi = {
 }
 
 // ─── Uploads ────────────────────────────────────────────────────────────────
-// Single upload path for the whole app: the backend holds the Cloudinary
-// credentials and an unsigned preset, not the client, and every upload goes
-// through normal auth instead of a client-side upload preset.
 export const uploadsApi = {
   image: (file: File, folder: 'products' | 'work-processes' = 'products') => {
     const form = new FormData()
@@ -135,6 +140,7 @@ export const stockMovementsApi = {
   list: (params?: Record<string, unknown>) => api.get('/stock-movements', { params }),
   get: (id: number) => api.get(`/stock-movements/${id}`),
   create: (data: object) => api.post('/stock-movements', data),
+  types: () => api.get<string[]>('/stock-movements/types'),
 }
 
 // ─── Work Processes ─────────────────────────────────────────────────────────
@@ -144,6 +150,33 @@ export const workProcessesApi = {
   create: (data: object) => api.post('/work-processes', data),
   update: (id: number, data: object) => api.put(`/work-processes/${id}`, data),
   delete: (id: number) => api.delete(`/work-processes/${id}`),
+}
+
+// ─── Projects ───────────────────────────────────────────────────────────────
+export const projectsApi = {
+  list: (params?: Record<string, unknown>) => api.get('/projects', { params }),
+  get: (id: number) => api.get(`/projects/${id}`),
+  create: (data: object) => api.post('/projects', data),
+  update: (id: number, data: object) => api.put(`/projects/${id}`, data),
+  delete: (id: number) => api.delete(`/projects/${id}`),
+}
+
+// ─── Warehouse Transfers ─────────────────────────────────────────────────────
+export const transfersApi = {
+  list: (params?: Record<string, unknown>) => api.get('/transfers', { params }),
+  get: (id: number) => api.get(`/transfers/${id}`),
+  create: (data: object) => api.post('/transfers', data),
+  update: (id: number, data: object) => api.put(`/transfers/${id}`, data),
+  receive: (id: number, data: object) => api.post(`/transfers/${id}/receive`, data),
+}
+
+// ─── Purchase Orders ─────────────────────────────────────────────────────────
+export const purchaseOrdersApi = {
+  list: (params?: Record<string, unknown>) => api.get('/purchase-orders', { params }),
+  get: (id: number) => api.get(`/purchase-orders/${id}`),
+  create: (data: object) => api.post('/purchase-orders', data),
+  update: (id: number, data: object) => api.put(`/purchase-orders/${id}`, data),
+  receive: (id: number, data: object) => api.post(`/purchase-orders/${id}/receive`, data),
 }
 
 // ─── Dashboard ──────────────────────────────────────────────────────────────

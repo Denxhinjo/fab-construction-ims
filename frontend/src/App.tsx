@@ -6,9 +6,7 @@ import Layout from './components/layout/Layout'
 import Login from './pages/Login'
 import Spinner from './components/ui/Spinner'
 
-// Everything past login is route-level code-split -- these are the bulk of
-// the bundle (charts, forms, tables) and aren't needed until a user actually
-// navigates to them.
+// Route-level code-split — loaded on demand
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const InventoryList = lazy(() => import('./pages/Inventory/InventoryList'))
 const AddEditProduct = lazy(() => import('./pages/Inventory/AddEditProduct'))
@@ -19,6 +17,9 @@ const WorkProcessList = lazy(() => import('./pages/WorkProcesses/WorkProcessList
 const AddEditWorkProcess = lazy(() => import('./pages/WorkProcesses/AddEditWorkProcess'))
 const UserManagement = lazy(() => import('./pages/Users/UserManagement'))
 const Reports = lazy(() => import('./pages/Reports/Reports'))
+const ProjectList = lazy(() => import('./pages/Projects/ProjectList'))
+const TransferList = lazy(() => import('./pages/Transfers/TransferList'))
+const PurchaseOrderList = lazy(() => import('./pages/PurchaseOrders/PurchaseOrderList'))
 
 function RouteFallback() {
   return (
@@ -62,6 +63,9 @@ function AppRoutes() {
           <Route path="work-processes" element={<WorkProcessList />} />
           <Route path="work-processes/new" element={<AddEditWorkProcess />} />
           <Route path="work-processes/:id/edit" element={<AddEditWorkProcess />} />
+          <Route path="projects" element={<ProjectList />} />
+          <Route path="transfers" element={<TransferList />} />
+          <Route path="purchase-orders" element={<PurchaseOrderList />} />
           <Route path="users" element={<AdminRoute><UserManagement /></AdminRoute>} />
           <Route path="reports" element={<Reports />} />
         </Route>
