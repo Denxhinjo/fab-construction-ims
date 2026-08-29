@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
-    APP_ENV: str = "development"
-    DEBUG: bool = True
+    APP_ENV: str = "production"
+    DEBUG: bool = False
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
     ADMIN_EMAIL: str = "admin@fabconstruction.com"
     ADMIN_PASSWORD: str = "Admin@123"

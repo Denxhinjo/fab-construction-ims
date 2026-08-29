@@ -41,9 +41,12 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, pwd_fingerprint: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    data = {"sub": str(user_id), "exp": expire}
+    # "cf" = credential fingerprint: first 8 chars of the bcrypt hash.
+    # If the password changes the fingerprint changes, instantly invalidating
+    # any token issued before the change — no token blacklist or DB column needed.
+    data = {"sub": str(user_id), "exp": expire, "cf": pwd_fingerprint}
     return jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -66,7 +69,7 @@ def login(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
 
-    token = create_access_token(user.id)
+    token = create_access_token(user.id, user.hashed_password[:8])
     return Token(
         access_token=token,
         user_id=user.id,

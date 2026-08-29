@@ -29,6 +29,11 @@ def get_current_user(
     user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None or not user.is_active:
         raise credentials_exception
+    # Validate credential fingerprint so password changes immediately
+    # invalidate all tokens issued before the change.
+    token_cf = payload.get("cf")
+    if token_cf is not None and token_cf != user.hashed_password[:8]:
+        raise credentials_exception
     return user
 
 
