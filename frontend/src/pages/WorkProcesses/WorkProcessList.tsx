@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import {
   Plus, Search, ClipboardList, Edit2, Trash2, Calendar,
-  MapPin, User, ChevronLeft, ChevronRight, Filter
+  MapPin, User, ChevronLeft, ChevronRight, Filter, FolderOpen
 } from 'lucide-react'
 import { workProcessesApi, mediaUrl } from '../../services/api'
 import type { WorkProcess, WorkProcessListOut } from '../../types'
@@ -185,6 +185,12 @@ export default function WorkProcessList() {
                     {wp.product && (
                       <span className="flex items-center gap-1 text-slate-400">
                         📦 {wp.product.name}
+                      </span>
+                    )}
+                    {wp.project && (
+                      <span className="flex items-center gap-1 text-brand-600">
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        [{wp.project.code}] {wp.project.name}
                       </span>
                     )}
                   </div>

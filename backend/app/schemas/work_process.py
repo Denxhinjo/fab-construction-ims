@@ -6,12 +6,21 @@ from .user import UserSummary
 from .location import LocationSummary
 
 
+class ProjectSummary(BaseModel):
+    id: int
+    code: str
+    name: str
+    status: str
+    model_config = {"from_attributes": True}
+
+
 class WorkProcessBase(BaseModel):
     title: str
     description: Optional[str] = None
     product_id: Optional[int] = None
     assigned_user_id: Optional[int] = None
     location_id: Optional[int] = None
+    project_id: Optional[int] = None
     status: str = "Not Started"
     priority: str = "Medium"
     start_date: Optional[date] = None
@@ -47,6 +56,7 @@ class WorkProcessUpdate(BaseModel):
     product_id: Optional[int] = None
     assigned_user_id: Optional[int] = None
     location_id: Optional[int] = None
+    project_id: Optional[int] = None
     status: Optional[str] = None
     priority: Optional[str] = None
     start_date: Optional[date] = None
@@ -62,6 +72,7 @@ class WorkProcessOut(WorkProcessBase):
     product: Optional[ProductSummary] = None
     assigned_user: Optional[UserSummary] = None
     location: Optional[LocationSummary] = None
+    project: Optional[ProjectSummary] = None
     created_at: datetime
     updated_at: datetime
 

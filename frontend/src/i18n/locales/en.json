@@ -60,7 +60,12 @@
     "product": "Product",
     "quantity": "Quantity",
     "by": "By",
-    "date": "Date"
+    "date": "Date",
+    "sendAlert": "Send Alert",
+    "sendAlertTitle": "Send low stock email alert",
+    "alertSent": "Alert sent for {{count}} item(s)",
+    "alertNoLowStock": "No low-stock products to alert about",
+    "alertSmtpNotConfigured": "Alert not sent — SMTP not configured"
   },
   "inventory": {
     "title": "Inventory",
@@ -254,7 +259,9 @@
     "uploadHint": "JPEG, PNG, WebP up to 10MB",
     "uploadingImage": "Uploading image...",
     "imageUploadFailed": "Image upload failed",
-    "viewImage": "View image"
+    "viewImage": "View image",
+    "linkedProject": "Linked Project",
+    "noProject": "No project"
   },
   "projects": {
     "title": "Projects",
@@ -342,7 +349,8 @@
       "PARTIALLY_RECEIVED": "Partially Received",
       "RECEIVED": "Received",
       "CANCELLED": "Cancelled"
-    }
+    },
+    "downloadPdf": "Download PDF"
   },
   "users": {
     "title": "User Management",

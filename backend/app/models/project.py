@@ -26,3 +26,4 @@ class Project(Base):
 
     project_manager = relationship("User", back_populates="managed_projects")
     stock_movements = relationship("StockMovement", back_populates="project")
+    work_processes = relationship("WorkProcess", back_populates="project")

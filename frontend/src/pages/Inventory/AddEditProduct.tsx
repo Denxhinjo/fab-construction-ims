@@ -9,7 +9,6 @@ import FormField from '../../components/ui/FormField'
 import Spinner from '../../components/ui/Spinner'
 import toast from 'react-hot-toast'
 
-const MAX_IMAGES = 3
 const CURRENCIES = [
   { value: 'ALL', label: 'ALL — Albanian Lek' },
   { value: 'EUR', label: 'EUR — Euro' },

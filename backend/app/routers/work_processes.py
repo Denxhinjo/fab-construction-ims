@@ -21,6 +21,7 @@ def list_work_processes(
     priority: Optional[str] = None,
     assigned_user_id: Optional[int] = None,
     location_id: Optional[int] = None,
+    project_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -35,6 +36,8 @@ def list_work_processes(
         query = query.filter(WorkProcess.assigned_user_id == assigned_user_id)
     if location_id:
         query = query.filter(WorkProcess.location_id == location_id)
+    if project_id:
+        query = query.filter(WorkProcess.project_id == project_id)
 
     # Non-admins only see work processes tied to a warehouse they have
     # access to -- one with no location at all is admin-only, since there's

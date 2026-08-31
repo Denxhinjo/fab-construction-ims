@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime, date, timezone
+import io
 import math
 
 from ..database import get_db
@@ -247,3 +249,93 @@ def receive_goods(
     db.commit()
     db.refresh(po)
     return PurchaseOrderOut.model_validate(po)
+
+
+@router.get("/{po_id}/pdf")
+def export_po_pdf(
+    po_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in PROCUREMENT_ROLES and current_user.role not in ("finance", "viewer"):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # Header
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.cell(0, 10, "PURCHASE ORDER", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 7, f"PO Number: {po.po_number}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 7, f"Status: {po.status.replace('_', ' ')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(3)
+
+    # PO details grid
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(95, 7, "Supplier", border=1, new_x="RIGHT", new_y="LAST")
+    pdf.cell(95, 7, "Destination Warehouse", border=1, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(95, 7, po.supplier.name if po.supplier else "-", border=1, new_x="RIGHT", new_y="LAST")
+    pdf.cell(95, 7, po.destination_location.name if po.destination_location else "-", border=1, new_x="LMARGIN", new_y="NEXT")
+
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(95, 7, "Order Date", border=1, new_x="RIGHT", new_y="LAST")
+    pdf.cell(95, 7, "Expected Delivery", border=1, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(95, 7, str(po.order_date) if po.order_date else "-", border=1, new_x="RIGHT", new_y="LAST")
+    pdf.cell(95, 7, str(po.expected_delivery_date) if po.expected_delivery_date else "-", border=1, new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(6)
+
+    # Items table header
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_fill_color(240, 240, 240)
+    col_w = [80, 20, 25, 30, 35]
+    headers = ["Description", "Unit", "Qty", f"Unit Cost ({po.currency})", f"Total ({po.currency})"]
+    for w, h in zip(col_w, headers):
+        pdf.cell(w, 8, h, border=1, fill=True, new_x="RIGHT", new_y="LAST")
+    pdf.ln()
+
+    # Items rows
+    pdf.set_font("Helvetica", "", 10)
+    for item in po.items:
+        desc = item.product.name if item.product else (item.description or f"Item #{item.id}")
+        unit_cost = item.unit_cost or 0.0
+        total = item.quantity * unit_cost
+        row = [
+            desc[:45],
+            item.unit,
+            f"{item.quantity:g}",
+            f"{unit_cost:,.2f}",
+            f"{total:,.2f}",
+        ]
+        for w, val in zip(col_w, row):
+            pdf.cell(w, 7, val, border=1, new_x="RIGHT", new_y="LAST")
+        pdf.ln()
+
+    # Grand total
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(sum(col_w[:4]), 8, "GRAND TOTAL", border=1, align="R", new_x="RIGHT", new_y="LAST")
+    pdf.cell(col_w[4], 8, f"{po.total_amount:,.2f} {po.currency}", border=1, new_x="LMARGIN", new_y="NEXT")
+
+    if po.notes:
+        pdf.ln(5)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(0, 7, "Notes:", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 6, po.notes)
+
+    buf = io.BytesIO(pdf.output())
+    filename = f"PO-{po.po_number}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

@@ -207,6 +207,13 @@ export interface StockMovementCreate {
 export type WorkProcessStatus = 'Not Started' | 'Started' | 'In Process' | 'Done'
 export type WorkProcessPriority = 'Low' | 'Medium' | 'High' | 'Critical'
 
+export interface ProjectSummary {
+  id: number
+  code: string
+  name: string
+  status: string
+}
+
 export interface WorkProcess {
   id: number
   title: string
@@ -214,6 +221,7 @@ export interface WorkProcess {
   product_id?: number
   assigned_user_id?: number
   location_id?: number
+  project_id?: number
   status: WorkProcessStatus
   priority: WorkProcessPriority
   start_date?: string
@@ -224,6 +232,7 @@ export interface WorkProcess {
   product?: ProductSummary
   assigned_user?: UserSummary
   location?: LocationSummary
+  project?: ProjectSummary
   created_at: string
   updated_at: string
 }

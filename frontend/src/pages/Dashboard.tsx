@@ -1,16 +1,19 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Package, MapPin, ClipboardList, CheckCircle2, AlertTriangle, Users, TrendingUp, TrendingDown,
-  ArrowRight, Wallet, PackagePlus, ArrowLeftRight, ListPlus, Truck,
+  ArrowRight, Wallet, PackagePlus, ArrowLeftRight, ListPlus, Truck, Bell,
 } from 'lucide-react'
-import { dashboardApi } from '../services/api'
+import { dashboardApi, alertsApi } from '../services/api'
 import type { DashboardStats } from '../types'
 import StatsCard from '../components/ui/StatsCard'
 import { StatusBadge } from '../components/ui/Badge'
 import Spinner from '../components/ui/Spinner'
 import { format } from 'date-fns'
+import toast from 'react-hot-toast'
+import { useAuth } from '../context/AuthContext'
 
 function trendOf(current: number, previous: number): { pct: number; positive: boolean } | undefined {
   if (previous <= 0) return undefined
@@ -21,6 +24,29 @@ function trendOf(current: number, previous: number): { pct: number; positive: bo
 export default function Dashboard() {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const [alertSending, setAlertSending] = useState(false)
+  const canSendAlert = user?.role === 'admin' || user?.role === 'warehouse_manager'
+
+  const sendLowStockAlert = async () => {
+    setAlertSending(true)
+    try {
+      const res = await alertsApi.triggerLowStock()
+      const d = res.data
+      if (d.sent) {
+        toast.success(t('dashboard.alertSent', { count: d.count }))
+      } else if (d.count === 0) {
+        toast(t('dashboard.alertNoLowStock'))
+      } else {
+        toast(t('dashboard.alertSmtpNotConfigured'))
+      }
+    } catch {
+      toast.error(t('common.serverError'))
+    } finally {
+      setAlertSending(false)
+    }
+  }
+
   const { data, isLoading } = useQuery<DashboardStats>({
     queryKey: ['dashboard'],
     queryFn: () => dashboardApi.stats().then((r) => r.data),
@@ -149,9 +175,22 @@ export default function Dashboard() {
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-700">{t('dashboard.lowStockAlert')}</h3>
-            <button onClick={() => navigate('/inventory?low_stock=true')} className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
-              {t('dashboard.viewAll')} <ArrowRight className="w-3 h-3" />
-            </button>
+            <div className="flex items-center gap-2">
+              {canSendAlert && (
+                <button
+                  onClick={sendLowStockAlert}
+                  disabled={alertSending}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1 disabled:opacity-50"
+                  title={t('dashboard.sendAlertTitle')}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  {alertSending ? '...' : t('dashboard.sendAlert')}
+                </button>
+              )}
+              <button onClick={() => navigate('/inventory?low_stock=true')} className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
+                {t('dashboard.viewAll')} <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
           </div>
           {lowStockItems.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-4">{t('dashboard.noLowStock')}</p>

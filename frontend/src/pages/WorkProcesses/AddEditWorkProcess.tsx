@@ -4,9 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Upload, X, Camera } from 'lucide-react'
 import { format } from 'date-fns'
-import { workProcessesApi, productsApi, locationsApi, usersApi, uploadsApi, mediaUrl } from '../../services/api'
+import { workProcessesApi, productsApi, locationsApi, usersApi, uploadsApi, mediaUrl, projectsApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
-import type { WorkProcess, ProductListOut, Location, User } from '../../types'
+import type { WorkProcess, ProductListOut, Location, User, ProjectListOut } from '../../types'
 import FormField from '../../components/ui/FormField'
 import Spinner from '../../components/ui/Spinner'
 import toast from 'react-hot-toast'
@@ -17,6 +17,7 @@ const emptyForm = {
   product_id: '',
   assigned_user_id: '',
   location_id: '',
+  project_id: '',
   status: 'Not Started',
   priority: 'Medium',
   start_date: '',
@@ -60,6 +61,10 @@ export default function AddEditWorkProcess() {
     queryFn: () => usersApi.list().then((r) => r.data),
     enabled: isAdmin,
   })
+  const { data: projectsData } = useQuery<ProjectListOut>({
+    queryKey: ['projects-all'],
+    queryFn: () => projectsApi.list({ page_size: 100 }).then((r) => r.data),
+  })
 
   useEffect(() => {
     if (wp && isEdit) {
@@ -69,6 +74,7 @@ export default function AddEditWorkProcess() {
         product_id: wp.product_id?.toString() ?? '',
         assigned_user_id: wp.assigned_user_id?.toString() ?? '',
         location_id: wp.location_id?.toString() ?? '',
+        project_id: wp.project_id?.toString() ?? '',
         status: wp.status,
         priority: wp.priority,
         start_date: wp.start_date ? format(new Date(wp.start_date), 'yyyy-MM-dd') : '',
@@ -151,6 +157,7 @@ export default function AddEditWorkProcess() {
       product_id: form.product_id ? Number(form.product_id) : null,
       assigned_user_id: form.assigned_user_id ? Number(form.assigned_user_id) : null,
       location_id: form.location_id ? Number(form.location_id) : null,
+      project_id: form.project_id ? Number(form.project_id) : null,
       start_date: form.start_date || null,
       due_date: form.due_date || null,
       completion_date: form.completion_date || null,
@@ -258,6 +265,12 @@ export default function AddEditWorkProcess() {
             <select className="input-base" value={form.product_id} onChange={set('product_id')}>
               <option value="">{t('workProcesses.noProduct')}</option>
               {productsData?.items?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </FormField>
+          <FormField label={t('workProcesses.linkedProject')}>
+            <select className="input-base" value={form.project_id} onChange={set('project_id')}>
+              <option value="">{t('workProcesses.noProject')}</option>
+              {projectsData?.items?.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
             </select>
           </FormField>
         </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Plus, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, ShoppingCart, ChevronDown, ChevronUp, FileDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { purchaseOrdersApi, suppliersApi, locationsApi, productsApi } from '../../services/api'
@@ -42,6 +42,24 @@ export default function PurchaseOrderList() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [receiveId, setReceiveId] = useState<number | null>(null)
   const [receiveQtys, setReceiveQtys] = useState<Record<number, number>>({})
+  const [downloadingPdfId, setDownloadingPdfId] = useState<number | null>(null)
+
+  const downloadPdf = async (poId: number, poNumber: string) => {
+    setDownloadingPdfId(poId)
+    try {
+      const res = await purchaseOrdersApi.pdf(poId)
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `PO-${poNumber}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error(t('common.serverError'))
+    } finally {
+      setDownloadingPdfId(null)
+    }
+  }
 
   const [supplier, setSupplier] = useState('')
   const [location, setLocation] = useState('')
@@ -246,6 +264,14 @@ export default function PurchaseOrderList() {
                           {t('po.receiveGoods')}
                         </button>
                       )}
+                      <button
+                        onClick={() => downloadPdf(po.id, po.po_number)}
+                        disabled={downloadingPdfId === po.id}
+                        className="btn-secondary text-xs flex items-center gap-1"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                        {downloadingPdfId === po.id ? '...' : t('po.downloadPdf')}
+                      </button>
                     </div>
                   </div>
                 )}
