@@ -6,7 +6,7 @@ from .config import settings
 from .routers import (
     auth, users, categories, locations, suppliers, products,
     stock_movements, work_processes, dashboard, uploads,
-    projects, transfers, purchase_orders,
+    projects, transfers, purchase_orders, alerts,
 )
 
 app = FastAPI(
@@ -45,6 +45,7 @@ app.include_router(uploads.router)
 app.include_router(projects.router)
 app.include_router(transfers.router)
 app.include_router(purchase_orders.router)
+app.include_router(alerts.router)
 
 
 @app.get("/api/health")

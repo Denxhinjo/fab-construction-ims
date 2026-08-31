@@ -13,6 +13,7 @@ class WorkProcess(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     assigned_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     status = Column(String(30), default="Not Started", nullable=False)
     priority = Column(String(20), default="Medium", nullable=False)
     start_date = Column(Date, nullable=True)
@@ -26,3 +27,4 @@ class WorkProcess(Base):
     product = relationship("Product", back_populates="work_processes")
     assigned_user = relationship("User", back_populates="work_processes", foreign_keys=[assigned_user_id])
     location = relationship("Location", back_populates="work_processes")
+    project = relationship("Project", back_populates="work_processes")

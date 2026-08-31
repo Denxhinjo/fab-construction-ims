@@ -60,7 +60,12 @@
     "product": "Produkti",
     "quantity": "Sasia",
     "by": "Nga",
-    "date": "Data"
+    "date": "Data",
+    "sendAlert": "Dërgo Alarm",
+    "sendAlertTitle": "Dërgo alarm me email për stok të ulët",
+    "alertSent": "Alarmi u dërgua për {{count}} artikull(e)",
+    "alertNoLowStock": "Asnjë produkt me stok të ulët",
+    "alertSmtpNotConfigured": "Alarmi nuk u dërgua — SMTP nuk është konfiguruar"
   },
   "inventory": {
     "title": "Inventari",
@@ -254,7 +259,9 @@
     "uploadHint": "JPEG, PNG, WebP deri në 10MB",
     "uploadingImage": "Duke ngarkuar imazhin...",
     "imageUploadFailed": "Ngarkimi i imazhit dështoi",
-    "viewImage": "Shiko imazhin"
+    "viewImage": "Shiko imazhin",
+    "linkedProject": "Projekti i Lidhur",
+    "noProject": "Pa projekt"
   },
   "projects": {
     "title": "Projektet",
@@ -342,7 +349,8 @@
       "PARTIALLY_RECEIVED": "Marrë Pjesërisht",
       "RECEIVED": "Marrë",
       "CANCELLED": "Anuluar"
-    }
+    },
+    "downloadPdf": "Shkarko PDF"
   },
   "users": {
     "title": "Menaxhimi i Përdoruesve",

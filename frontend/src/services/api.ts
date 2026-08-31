@@ -177,6 +177,13 @@ export const purchaseOrdersApi = {
   create: (data: object) => api.post('/purchase-orders', data),
   update: (id: number, data: object) => api.put(`/purchase-orders/${id}`, data),
   receive: (id: number, data: object) => api.post(`/purchase-orders/${id}/receive`, data),
+  pdf: (id: number) => api.get(`/purchase-orders/${id}/pdf`, { responseType: 'blob' }),
+}
+
+// ─── Alerts ──────────────────────────────────────────────────────────────────
+export const alertsApi = {
+  triggerLowStock: () => api.post('/alerts/low-stock'),
+  previewLowStock: () => api.get('/alerts/low-stock/preview'),
 }
 
 // ─── Dashboard ──────────────────────────────────────────────────────────────
