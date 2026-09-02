@@ -45,34 +45,22 @@ def seed():
                     hashed_password=pwd_context.hash("Admin@123"),
                     role="admin",
                     is_active=True,
-                    phone="+1-555-0100",
                 ),
                 User(
-                    email="john.smith@fabconstruction.com",
-                    username="jsmith",
-                    full_name="John Smith",
-                    hashed_password=pwd_context.hash("User@123"),
-                    role="user",
+                    email="arkfabconstruction@gmail.com",
+                    username="arkfab",
+                    full_name="Ark Fab Construction",
+                    hashed_password=pwd_context.hash("Fabconstruction2026"),
+                    role="warehouse_manager",
                     is_active=True,
-                    phone="+1-555-0101",
                 ),
                 User(
-                    email="sarah.jones@fabconstruction.com",
-                    username="sjones",
-                    full_name="Sarah Jones",
-                    hashed_password=pwd_context.hash("User@123"),
-                    role="user",
+                    email="dxhabrahimi2002@gmail.com",
+                    username="denxhinjo",
+                    full_name="Denxhinjo Abrahimi",
+                    hashed_password=pwd_context.hash("Denis@123"),
+                    role="admin",
                     is_active=True,
-                    phone="+1-555-0102",
-                ),
-                User(
-                    email="mike.wilson@fabconstruction.com",
-                    username="mwilson",
-                    full_name="Mike Wilson",
-                    hashed_password=pwd_context.hash("User@123"),
-                    role="user",
-                    is_active=True,
-                    phone="+1-555-0103",
                 ),
             ]
             db.add_all(users)
@@ -261,8 +249,8 @@ def seed():
 
         # Stock Movements
         if db.query(StockMovement).count() == 0:
-            admin = db.query(User).filter(User.role == "admin").first()
-            user1 = db.query(User).filter(User.username == "jsmith").first()
+            admin = db.query(User).filter(User.username == "admin").first()
+            user1 = db.query(User).filter(User.username == "arkfab").first()
             products = db.query(Product).all()
             today = date.today()
 
@@ -336,7 +324,7 @@ def seed():
                     title="Electrical Rough-In - Building A Units 101-110",
                     description="Install electrical rough-in wiring for first floor units",
                     product_id=prods["ELE-001"].id,
-                    assigned_user_id=users[3].id,
+                    assigned_user_id=users[1].id,
                     location_id=locs["Downtown Site"].id,
                     status="Started",
                     priority="Medium",
@@ -380,7 +368,7 @@ def seed():
                 WorkProcess(
                     title="Inventory Count - South Yard",
                     description="Full physical inventory count of South Yard storage",
-                    assigned_user_id=users[3].id,
+                    assigned_user_id=users[1].id,
                     location_id=locs["South Yard"].id,
                     status="Done",
                     priority="Medium",
@@ -395,11 +383,10 @@ def seed():
             print("✓ Work processes seeded")
 
         print("\n✅ Seed data complete!")
-        print("\nDemo accounts:")
-        print("  Admin: admin@fabconstruction.com / Admin@123")
-        print("  User:  john.smith@fabconstruction.com / User@123")
-        print("  User:  sarah.jones@fabconstruction.com / User@123")
-        print("  User:  mike.wilson@fabconstruction.com / User@123")
+        print("\nAccounts:")
+        print("  Admin:             admin@fabconstruction.com / Admin@123")
+        print("  Warehouse Manager: arkfabconstruction@gmail.com / Fabconstruction2026")
+        print("  Admin:             dxhabrahimi2002@gmail.com / Denis@123")
 
     except Exception as e:
         db.rollback()
