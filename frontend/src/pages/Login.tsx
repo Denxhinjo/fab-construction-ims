@@ -93,21 +93,18 @@ export default function Login() {
               </button>
             </form>
 
-            {import.meta.env.DEV && (
-              <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <p className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">{t('login.demoCredentials')}</p>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">Admin:</span>
-                    <span className="font-mono text-slate-700">admin / Admin@123</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">User:</span>
-                    <span className="font-mono text-slate-700">jsmith / User@123</span>
-                  </div>
-                </div>
-              </div>
-            )}
+            <p className="mt-6 text-center text-xs text-slate-400">
+              Want to explore with a demo account?{' '}
+              <a
+                href="https://denxhinjo.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-500 hover:text-brand-600 font-medium underline underline-offset-2"
+              >
+                Visit my portfolio
+              </a>{' '}
+              for the credentials.
+            </p>
           </div>
         </div>
         <p className="text-center text-slate-500 text-xs mt-6">{t('login.copyright')}</p>
