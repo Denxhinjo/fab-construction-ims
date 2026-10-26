@@ -186,7 +186,9 @@ def _split_row(line: str) -> tuple[list[str], list[tuple[str, float]], Optional[
     price, amount). A unit is only taken from inside the run while at most
     four numbers follow it; on fiscal invoices the unit comes before all five
     amount columns and is left for _parse_row to pick up."""
-    tokens = [t for t in line.split() if _clean_token(t)]
+    # Column rules come out of OCR as stray punctuation ("—", "-", "\").
+    # A lone "|" is kept: it is usually a misread "I" in the description.
+    tokens = [t for t in line.split() if t == "|" or any(c.isalnum() for c in t)]
     numbers: list[tuple[str, float]] = []
     unit = None
     while tokens:

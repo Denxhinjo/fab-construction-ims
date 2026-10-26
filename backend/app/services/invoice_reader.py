@@ -12,6 +12,7 @@ Turns an uploaded invoice file into plain text lines for invoice_parser.
 from __future__ import annotations
 
 import io
+import os
 import shutil
 from dataclasses import dataclass
 from statistics import median
@@ -110,7 +111,9 @@ def _page_text(page) -> str:
 
 # ─── OCR ──────────────────────────────────────────────────────────────────────
 def ocr_available() -> bool:
-    return bool(settings.TESSERACT_CMD or shutil.which("tesseract"))
+    if settings.TESSERACT_CMD:
+        return os.path.isfile(settings.TESSERACT_CMD)
+    return bool(shutil.which("tesseract"))
 
 
 def _ocr(image) -> str:
