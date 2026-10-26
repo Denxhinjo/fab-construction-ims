@@ -81,28 +81,21 @@ def record_movement(
     movement_date: date,
     source_location_id: Optional[int] = None,
     destination_location_id: Optional[int] = None,
-    project_id: Optional[int] = None,
-    purchase_order_id: Optional[int] = None,
     transfer_id: Optional[int] = None,
+    invoice_id: Optional[int] = None,
     reason: Optional[str] = None,
     notes: Optional[str] = None,
     reference_number: Optional[str] = None,
-    approved_by_id: Optional[int] = None,
     received_by_id: Optional[int] = None,
     consume_reservation: bool = False,
 ) -> StockMovement:
     """
     Record a stock movement and update product_stock + product.quantity in one transaction.
 
-    For INBOUND types (Purchase Receipt, Transfer In, Opening Balance, etc.):
-        - Adds quantity to destination_location_id (or source_location_id if no dest).
-
-    For OUTBOUND types (Transfer Out, Project Issue, Adjustment Out, etc.):
-        - Removes quantity from source_location_id.
-        - Checks available stock (on_hand - reserved).
-
-    For "Adjustment" (legacy type, sets product.quantity to an absolute value):
-        - Calculates delta and updates the relevant location stock.
+    INBOUND types (Purchase Receipt, Transfer In, Adjustment In, ...) add to
+    destination_location_id (or source_location_id when only that is given).
+    OUTBOUND types (Transfer Out, Adjustment Out, ...) remove from
+    source_location_id, refusing to go below the available quantity.
 
     Caller must commit the session after this call returns.
     """
@@ -114,43 +107,32 @@ def record_movement(
         raise HTTPException(status_code=404, detail="Product not found")
 
     prev_qty = product.quantity
-    new_qty = prev_qty
 
     if movement_type in INBOUND_TYPES:
-        target_loc = destination_location_id or source_location_id or product.location_id
-        if target_loc:
-            loc_stock = _get_or_create_stock(db, product_id, target_loc)
-            loc_stock.quantity += quantity
+        target_loc = destination_location_id or source_location_id
+        if not target_loc:
+            raise HTTPException(status_code=400, detail="A warehouse is required for incoming stock.")
+        _get_or_create_stock(db, product_id, target_loc).quantity += quantity
         new_qty = prev_qty + quantity
 
     elif movement_type in OUTBOUND_TYPES:
-        src_loc = source_location_id or product.location_id
-        if src_loc:
-            loc_stock = _get_or_create_stock(db, product_id, src_loc)
-            available = loc_stock.quantity - loc_stock.reserved_quantity
-            if available < quantity:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Insufficient available stock at this location. Available: {available:.2f}, Requested: {quantity:.2f}",
-                )
-            loc_stock.quantity -= quantity
-            if consume_reservation:
-                loc_stock.reserved_quantity = max(0.0, loc_stock.reserved_quantity - quantity)
-        elif product.quantity < quantity:
+        if not source_location_id:
+            raise HTTPException(status_code=400, detail="A warehouse is required for outgoing stock.")
+        loc_stock = _get_or_create_stock(db, product_id, source_location_id)
+        available = loc_stock.quantity - loc_stock.reserved_quantity
+        if available < quantity - 1e-9:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient stock. Available: {product.quantity:.2f}, Requested: {quantity:.2f}",
+                detail=f"Insufficient stock of {product.name} in this warehouse. "
+                       f"Available: {available:g}, requested: {quantity:g}",
             )
+        loc_stock.quantity -= quantity
+        if consume_reservation:
+            loc_stock.reserved_quantity = max(0.0, loc_stock.reserved_quantity - quantity)
         new_qty = prev_qty - quantity
 
-    elif movement_type == "Adjustment":
-        # Legacy: set quantity to absolute value
-        target_loc = source_location_id or product.location_id
-        delta = quantity - prev_qty
-        if target_loc:
-            loc_stock = _get_or_create_stock(db, product_id, target_loc)
-            loc_stock.quantity = max(0.0, loc_stock.quantity + delta)
-        new_qty = quantity
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported movement type: {movement_type}")
 
     product.quantity = new_qty
 
@@ -164,18 +146,51 @@ def record_movement(
         movement_date=movement_date,
         source_location_id=source_location_id,
         destination_location_id=destination_location_id,
-        project_id=project_id,
-        purchase_order_id=purchase_order_id,
         transfer_id=transfer_id,
+        invoice_id=invoice_id,
         reason=reason,
         notes=notes,
         reference_number=reference_number,
-        approved_by_id=approved_by_id,
         received_by_id=received_by_id,
     )
     db.add(movement)
     db.flush()
     return movement
+
+
+def apply_purchase_cost(product: Product, quantity: float, unit_cost: Optional[float]) -> None:
+    """Fold a purchase into the product's weighted average cost. Call
+    *before* record_movement, while product.quantity is still the old total."""
+    if unit_cost is None:
+        return
+    old_qty = max(product.quantity, 0.0)
+    old_cost = product.avg_cost if product.avg_cost is not None else unit_cost
+    product.avg_cost = round((old_qty * old_cost + quantity * unit_cost) / (old_qty + quantity), 4)
+    product.latest_cost = unit_cost
+
+
+def adjust_to_count(
+    db: Session, *, product_id: int, location_id: int, counted: float, user_id: int,
+    reference_number: str, note: Optional[str] = None,
+) -> Optional[StockMovement]:
+    """Set a warehouse's quantity to a physical count. Returns None when the
+    count already matches."""
+    stock = _get_or_create_stock(db, product_id, location_id)
+    delta = round(counted - stock.quantity, 6)
+    if delta == 0:
+        return None
+    return record_movement(
+        db,
+        product_id=product_id,
+        movement_type="Adjustment In" if delta > 0 else "Adjustment Out",
+        quantity=abs(delta),
+        user_id=user_id,
+        movement_date=date.today(),
+        source_location_id=location_id,
+        destination_location_id=location_id,
+        reason=note or "Physical count",
+        reference_number=reference_number,
+    )
 
 
 def generate_reference(db: Session, prefix: str, model_class, ref_column: str, year: int) -> str:

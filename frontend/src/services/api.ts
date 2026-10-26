@@ -1,6 +1,11 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
 import i18n from '../i18n'
+import type {
+  BelowMinItem, Category, Dashboard, Invoice, InvoiceListOut, InvoiceUpdate, Location, NavCounts,
+  Paginated, Product, ProductSummary, ProductWrite, SearchResults, StockMovement, StockOut, Supplier,
+  WarehouseTransfer,
+} from '../types'
 
 // In dev: VITE_API_URL is not set, so Vite proxy handles /api -> localhost:8000
 // In production (Vercel): set VITE_API_URL = https://<your-backend>.vercel.app in the frontend project env vars
@@ -10,13 +15,6 @@ const api = axios.create({
   baseURL: `${API_ORIGIN}/api`,
   headers: { 'Content-Type': 'application/json' },
 })
-
-// Prefix media file paths with the backend origin for production
-export function mediaUrl(path: string | null | undefined): string | undefined {
-  if (!path) return undefined
-  if (path.startsWith('http://') || path.startsWith('https://')) return path
-  return `${API_ORIGIN}${path}`
-}
 
 // Attach JWT token on every request
 api.interceptors.request.use((config) => {
@@ -49,6 +47,8 @@ api.interceptors.response.use(
       } else {
         toast.error(i18n.t('common.validationError'))
       }
+    } else if (status === 409) {
+      // Conflicts (e.g. an invoice already booked) are asked about by the caller.
     } else if (status >= 500) {
       toast.error(i18n.t('common.serverError'))
     } else if (detail && typeof detail === 'string') {
@@ -76,18 +76,6 @@ export const authApi = {
     api.post('/auth/change-password', { old_password, new_password }),
 }
 
-// ─── Uploads ────────────────────────────────────────────────────────────────
-export const uploadsApi = {
-  image: (file: File, folder: 'products' | 'work-processes' = 'products') => {
-    const form = new FormData()
-    form.append('file', file)
-    form.append('folder', folder)
-    return api.post<{ url: string }>('/uploads/image', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  },
-}
-
 // ─── Users ──────────────────────────────────────────────────────────────────
 export const usersApi = {
   list: () => api.get('/users'),
@@ -99,16 +87,12 @@ export const usersApi = {
 
 // ─── Categories ─────────────────────────────────────────────────────────────
 export const categoriesApi = {
-  list: () => api.get('/categories'),
-  get: (id: number) => api.get(`/categories/${id}`),
-  create: (data: object) => api.post('/categories', data),
-  update: (id: number, data: object) => api.put(`/categories/${id}`, data),
-  delete: (id: number) => api.delete(`/categories/${id}`),
+  list: () => api.get<Category[]>('/categories'),
 }
 
 // ─── Locations ──────────────────────────────────────────────────────────────
 export const locationsApi = {
-  list: () => api.get('/locations'),
+  list: () => api.get<Location[]>('/locations'),
   get: (id: number) => api.get(`/locations/${id}`),
   create: (data: object) => api.post('/locations', data),
   update: (id: number, data: object) => api.put(`/locations/${id}`, data),
@@ -117,76 +101,79 @@ export const locationsApi = {
 
 // ─── Suppliers ──────────────────────────────────────────────────────────────
 export const suppliersApi = {
-  list: () => api.get('/suppliers'),
+  list: () => api.get<Supplier[]>('/suppliers'),
   get: (id: number) => api.get(`/suppliers/${id}`),
   create: (data: object) => api.post('/suppliers', data),
   update: (id: number, data: object) => api.put(`/suppliers/${id}`, data),
   delete: (id: number) => api.delete(`/suppliers/${id}`),
 }
 
-// ─── Products ───────────────────────────────────────────────────────────────
-const FORM_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded' }
-
+// ─── Materials & stock ──────────────────────────────────────────────────────
 export const productsApi = {
-  list: (params?: Record<string, unknown>) => api.get('/products', { params }),
-  get: (id: number) => api.get(`/products/${id}`),
-  create: (data: URLSearchParams) => api.post('/products', data.toString(), { headers: FORM_HEADERS }),
-  update: (id: number, data: URLSearchParams) => api.put(`/products/${id}`, data.toString(), { headers: FORM_HEADERS }),
-  delete: (id: number) => api.delete(`/products/${id}`),
+  search: (search?: string, limit = 20) =>
+    api.get<ProductSummary[]>('/products', { params: { search, limit } }),
+  get: (id: number) => api.get<Product>(`/products/${id}`),
+  create: (data: ProductWrite) => api.post<Product>('/products', data),
+  update: (id: number, data: ProductWrite) => api.put<Product>(`/products/${id}`, data),
+  archive: (id: number) => api.delete(`/products/${id}`),
 }
 
-// ─── Stock Movements ────────────────────────────────────────────────────────
-export const stockMovementsApi = {
-  list: (params?: Record<string, unknown>) => api.get('/stock-movements', { params }),
-  get: (id: number) => api.get(`/stock-movements/${id}`),
-  create: (data: object) => api.post('/stock-movements', data),
-  types: () => api.get<string[]>('/stock-movements/types'),
+export const stockApi = {
+  matrix: (params?: { search?: string; category_id?: number; location_id?: number; below_min?: boolean }) =>
+    api.get<StockOut>('/stock', { params }),
+  export: () => api.get<Blob>('/stock/export', { responseType: 'blob' }),
+  adjust: (data: { product_id: number; location_id: number; counted_quantity: number; note?: string }) =>
+    api.post<{ changed: boolean; reference: string | null }>('/stock/adjust', data),
 }
 
-// ─── Work Processes ─────────────────────────────────────────────────────────
-export const workProcessesApi = {
-  list: (params?: Record<string, unknown>) => api.get('/work-processes', { params }),
-  get: (id: number) => api.get(`/work-processes/${id}`),
-  create: (data: object) => api.post('/work-processes', data),
-  update: (id: number, data: object) => api.put(`/work-processes/${id}`, data),
-  delete: (id: number) => api.delete(`/work-processes/${id}`),
+export const movementsApi = {
+  list: (params?: Record<string, unknown>) => api.get<Paginated<StockMovement>>('/stock-movements', { params }),
 }
 
-// ─── Projects ───────────────────────────────────────────────────────────────
-export const projectsApi = {
-  list: (params?: Record<string, unknown>) => api.get('/projects', { params }),
-  get: (id: number) => api.get(`/projects/${id}`),
-  create: (data: object) => api.post('/projects', data),
-  update: (id: number, data: object) => api.put(`/projects/${id}`, data),
-  delete: (id: number) => api.delete(`/projects/${id}`),
-}
-
-// ─── Warehouse Transfers ─────────────────────────────────────────────────────
+// ─── Transfers ──────────────────────────────────────────────────────────────
 export const transfersApi = {
-  list: (params?: Record<string, unknown>) => api.get('/transfers', { params }),
-  get: (id: number) => api.get(`/transfers/${id}`),
-  create: (data: object) => api.post('/transfers', data),
-  update: (id: number, data: object) => api.put(`/transfers/${id}`, data),
-  receive: (id: number, data: object) => api.post(`/transfers/${id}/receive`, data),
+  list: (params?: { status?: 'open' | 'closed'; page_size?: number; location_id?: number }) =>
+    api.get<Paginated<WarehouseTransfer>>('/transfers', { params }),
+  get: (id: number) => api.get<WarehouseTransfer>(`/transfers/${id}`),
+  send: (data: {
+    source_location_id: number
+    destination_location_id: number
+    driver?: string
+    notes?: string
+    items: { product_id: number; quantity: number }[]
+  }) => api.post<WarehouseTransfer>('/transfers', data),
+  receive: (id: number, items?: { item_id: number; received_quantity: number }[]) =>
+    api.post<WarehouseTransfer>(`/transfers/${id}/receive`, items ? { items } : {}),
 }
 
-// ─── Purchase Orders ─────────────────────────────────────────────────────────
-export const purchaseOrdersApi = {
-  list: (params?: Record<string, unknown>) => api.get('/purchase-orders', { params }),
-  get: (id: number) => api.get(`/purchase-orders/${id}`),
-  create: (data: object) => api.post('/purchase-orders', data),
-  update: (id: number, data: object) => api.put(`/purchase-orders/${id}`, data),
-  receive: (id: number, data: object) => api.post(`/purchase-orders/${id}/receive`, data),
-  pdf: (id: number) => api.get(`/purchase-orders/${id}/pdf`, { responseType: 'blob' }),
+// ─── Invoices ───────────────────────────────────────────────────────────────
+export const invoicesApi = {
+  list: (params?: { status?: string; page?: number; page_size?: number }) =>
+    api.get<InvoiceListOut>('/invoices', { params }),
+  get: (id: number) => api.get<Invoice>(`/invoices/${id}`),
+  // OCR of a scanned page takes several seconds; allow for slow servers.
+  upload: (file: File, locationId?: number) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (locationId) form.append('location_id', String(locationId))
+    return api.post<Invoice>('/invoices', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120_000,
+    })
+  },
+  file: (id: number) => api.get<Blob>(`/invoices/${id}/file`, { responseType: 'blob' }),
+  save: (id: number, data: InvoiceUpdate) => api.put<Invoice>(`/invoices/${id}`, data),
+  accept: (id: number, data: InvoiceUpdate) => api.post<Invoice>(`/invoices/${id}/accept`, data),
+  reject: (id: number) => api.post<Invoice>(`/invoices/${id}/reject`),
 }
 
-// ─── Alerts ──────────────────────────────────────────────────────────────────
-export const alertsApi = {
-  triggerLowStock: () => api.post('/alerts/low-stock'),
-  previewLowStock: () => api.get('/alerts/low-stock/preview'),
-}
-
-// ─── Dashboard ──────────────────────────────────────────────────────────────
+// ─── Dashboard & search ─────────────────────────────────────────────────────
 export const dashboardApi = {
-  stats: () => api.get('/dashboard/stats'),
+  get: () => api.get<Dashboard>('/dashboard'),
+  counts: () => api.get<NavCounts>('/dashboard/counts'),
+  belowMin: () => api.get<BelowMinItem[]>('/dashboard/below-min'),
+}
+
+export const searchApi = {
+  search: (q: string) => api.get<SearchResults>('/search', { params: { q } }),
 }

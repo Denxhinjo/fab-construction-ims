@@ -103,38 +103,7 @@ export interface Supplier {
   updated_at: string
 }
 
-// Product
-export interface Product {
-  id: number
-  name: string
-  sku?: string
-  category_id?: number
-  description?: string
-  quantity: number
-  unit: string
-  min_stock_level: number
-  reorder_quantity?: number
-  unit_price?: number
-  latest_cost?: number
-  avg_cost?: number
-  location_id?: number
-  supplier_id?: number
-  brand?: string
-  barcode?: string
-  image_url?: string
-  image_url_2?: string
-  image_url_3?: string
-  price_currency?: string
-  status: string
-  notes?: string
-  is_low_stock: boolean
-  category?: { id: number; name: string; color?: string }
-  location?: { id: number; name: string; city?: string }
-  supplier?: { id: number; name: string }
-  created_at: string
-  updated_at: string
-}
-
+// Materials
 export interface ProductSummary {
   id: number
   name: string
@@ -143,140 +112,91 @@ export interface ProductSummary {
   unit: string
 }
 
-export interface ProductListOut {
-  items: Product[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
+export interface Product extends ProductSummary {
+  min_stock_level: number
+  unit_price?: number
+  avg_cost?: number
+  latest_cost?: number
+  status: string
+  notes?: string
+  category?: { id: number; name: string }
+  supplier?: { id: number; name: string }
+  created_at: string
+  updated_at: string
 }
 
-// Stock Movement
-export type MovementType =
-  | 'Stock In' | 'Stock Out' | 'Adjustment'
-  | 'Purchase Receipt' | 'Warehouse Transfer Out' | 'Warehouse Transfer In'
-  | 'Project Issue' | 'Project Return' | 'Supplier Return'
-  | 'Adjustment In' | 'Adjustment Out' | 'Opening Balance'
+export interface ProductWrite {
+  name: string
+  sku?: string | null
+  category_name?: string | null
+  unit: string
+  min_stock_level: number
+  unit_price?: number | null
+  notes?: string | null
+  location_mins: Record<number, number | null>
+}
 
+// Stock matrix: one row per material, one cell per warehouse
+export interface StockCell {
+  quantity: number
+  min: number
+  below_min: boolean
+}
+
+export interface StockRow {
+  id: number
+  name: string
+  sku?: string
+  category?: string
+  unit: string
+  total: number
+  avg_cost?: number
+  last_supplier?: string
+  min_stock_level: number
+  notes?: string
+  cells: Record<string, StockCell>
+}
+
+export interface StockOut {
+  locations: { id: number; name: string }[]
+  rows: StockRow[]
+  total_materials: number
+}
+
+// Movements (history)
 export interface StockMovement {
   id: number
   product_id: number
-  movement_type: MovementType
+  movement_type: string
   quantity: number
   previous_quantity?: number
   new_quantity?: number
   reason?: string
-  user_id: number
   movement_date: string
   notes?: string
   reference_number?: string
   source_location_id?: number
   destination_location_id?: number
-  project_id?: number
-  purchase_order_id?: number
   transfer_id?: number
-  approved_by_id?: number
-  received_by_id?: number
+  invoice_id?: number
+  user_id: number
   product?: ProductSummary
   user?: UserSummary
+  source_location?: LocationSummary
+  destination_location?: LocationSummary
   created_at: string
 }
 
-export interface StockMovementListOut {
-  items: StockMovement[]
+export interface Paginated<T> {
+  items: T[]
   total: number
   page: number
   page_size: number
   total_pages: number
 }
 
-export interface StockMovementCreate {
-  product_id: number
-  movement_type: MovementType
-  quantity: number
-  reason?: string
-  movement_date: string
-  notes?: string
-  reference_number?: string
-  source_location_id?: number
-  destination_location_id?: number
-  project_id?: number
-}
-
-// Work Process
-export type WorkProcessStatus = 'Not Started' | 'Started' | 'In Process' | 'Done'
-export type WorkProcessPriority = 'Low' | 'Medium' | 'High' | 'Critical'
-
-export interface ProjectSummary {
-  id: number
-  code: string
-  name: string
-  status: string
-}
-
-export interface WorkProcess {
-  id: number
-  title: string
-  description?: string
-  product_id?: number
-  assigned_user_id?: number
-  location_id?: number
-  project_id?: number
-  status: WorkProcessStatus
-  priority: WorkProcessPriority
-  start_date?: string
-  due_date?: string
-  completion_date?: string
-  notes?: string
-  image_url?: string
-  product?: ProductSummary
-  assigned_user?: UserSummary
-  location?: LocationSummary
-  project?: ProjectSummary
-  created_at: string
-  updated_at: string
-}
-
-export interface WorkProcessListOut {
-  items: WorkProcess[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
-}
-
-// Project
-export type ProjectStatus = 'PLANNED' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED'
-
-export interface Project {
-  id: number
-  code: string
-  name: string
-  client?: string
-  address?: string
-  city?: string
-  status: ProjectStatus
-  start_date?: string
-  end_date?: string
-  project_manager_id?: number
-  notes?: string
-  is_active: boolean
-  project_manager?: UserSummary
-  created_at: string
-  updated_at: string
-}
-
-export interface ProjectListOut {
-  items: Project[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
-}
-
-// Warehouse Transfer
-export type TransferStatus =
-  | 'DRAFT' | 'PENDING' | 'APPROVED' | 'DISPATCHED' | 'IN_TRANSIT' | 'RECEIVED' | 'CANCELLED'
+// Transfers
+export type TransferStatus = 'IN_TRANSIT' | 'DISPATCHED' | 'RECEIVED' | 'RECEIVED_PARTIAL' | 'CANCELLED'
 
 export interface TransferItem {
   id: number
@@ -294,129 +214,159 @@ export interface WarehouseTransfer {
   destination_location_id: number
   status: TransferStatus
   notes?: string
-  requested_by_id: number
-  approved_by_id?: number
-  dispatched_by_id?: number
-  received_by_id?: number
-  approved_at?: string
+  driver?: string
   dispatched_at?: string
   received_at?: string
   created_at: string
-  updated_at: string
   source_location?: LocationSummary
   destination_location?: LocationSummary
   requested_by?: UserSummary
-  approved_by?: UserSummary
+  received_by?: UserSummary
   items: TransferItem[]
 }
 
-export interface WarehouseTransferListOut {
-  items: WarehouseTransfer[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
+// Invoices
+export type InvoiceStatus = 'review' | 'failed' | 'accepted' | 'rejected'
+export type LineKind = 'stock' | 'extra' | 'skip'
+
+export interface InvoiceLine {
+  id: number
+  line_no: number
+  code?: string
+  raw_description?: string
+  raw_unit?: string
+  kind: LineKind
+  quantity?: number | null
+  unit?: string | null
+  unit_price?: number | null
+  net_amount?: number | null
+  vat_amount?: number | null
+  gross_amount?: number | null
+  confidence: 'ok' | 'check'
+  issues: string[]
+  product_id?: number | null
+  match_method?: 'alias' | 'sku' | 'name' | 'manual' | 'new' | null
+  new_name?: string | null
+  new_category?: string | null
+  new_min?: number | null
+  product?: ProductSummary | null
 }
 
-// Purchase Order
-export type POStatus =
-  | 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'SENT'
-  | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED'
-
-export interface POItem {
+export interface Invoice {
   id: number
-  product_id?: number
-  description?: string
-  quantity: number
-  received_quantity: number
-  unit_cost?: number
-  unit: string
-  product?: ProductSummary
-}
-
-export interface PurchaseOrder {
-  id: number
-  po_number: string
-  supplier_id: number
-  destination_location_id: number
-  status: POStatus
-  order_date: string
-  expected_delivery_date?: string
-  notes?: string
-  total_amount: number
+  status: InvoiceStatus
+  file_name: string
+  content_type: string
+  file_size: number
+  used_ocr: boolean
+  read_issues: string[]
+  supplier_name_raw?: string
+  supplier_tax_number?: string
+  supplier_id?: number | null
+  supplier?: { id: number; name: string } | null
+  invoice_number?: string | null
+  invoice_date?: string | null
   currency: string
-  created_by_id: number
-  approved_by_id?: number
-  approved_at?: string
+  subtotal?: number | null
+  vat_total?: number | null
+  total?: number | null
+  location_id?: number | null
+  location?: LocationSummary | null
+  uploaded_by?: UserSummary
+  accepted_by?: UserSummary
+  accepted_at?: string
   created_at: string
-  updated_at: string
-  supplier?: { id: number; name: string }
-  destination_location?: LocationSummary
-  created_by?: UserSummary
-  approved_by?: UserSummary
-  items: POItem[]
+  lines: InvoiceLine[]
+  duplicate_of?: number | null
+  review_queue: number[]
 }
 
-export interface PurchaseOrderListOut {
-  items: PurchaseOrder[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
+export interface InvoiceListItem {
+  id: number
+  status: InvoiceStatus
+  file_name: string
+  invoice_number?: string
+  invoice_date?: string
+  supplier_name?: string
+  line_count: number
+  total?: number
+  currency: string
+  location?: LocationSummary
+  created_at: string
+}
+
+export interface InvoiceListOut extends Paginated<InvoiceListItem> {
+  counts: Record<string, number>
+}
+
+export interface InvoiceLineInput {
+  id?: number
+  kind: LineKind
+  raw_description?: string | null
+  quantity?: number | null
+  unit?: string | null
+  unit_price?: number | null
+  product_id?: number | null
+  new_name?: string | null
+  new_category?: string | null
+  new_min?: number | null
+}
+
+export interface InvoiceUpdate {
+  supplier_id?: number | null
+  new_supplier?: { name: string; tax_number?: string | null } | null
+  invoice_number?: string | null
+  invoice_date?: string | null
+  location_id?: number | null
+  lines?: InvoiceLineInput[]
+  allow_duplicate?: boolean
 }
 
 // Dashboard
-export interface DashboardStats {
-  stats: {
-    total_products: number
-    low_stock_products: number
-    total_locations: number
-    active_work_processes: number
-    completed_work_processes: number
-    total_users: number
-    total_inventory_value: number
-    active_projects: number
-    pending_transfers: number
-    open_purchase_orders: number
-  }
-  stock_summary: {
-    stock_in_30d: number
-    stock_out_30d: number
-    stock_in_prev_30d: number
-    stock_out_prev_30d: number
-  }
-  work_process_by_status: Record<WorkProcessStatus, number>
-  recent_activity: Array<{
-    id: number
-    type: string
-    product_name: string
-    quantity: number
-    unit: string
-    user_name: string
-    date: string
-    created_at: string
-  }>
-  low_stock_items: Array<{
-    id: number
-    name: string
-    quantity: number
-    min_stock_level: number
-    unit: string
-    location?: string
-  }>
-  top_moved_products?: Array<{
-    id: number
-    name: string
-    quantity: number
-    unit: string
-  }>
-  movements_this_week?: number
-  movements_last_week?: number
+export interface BelowMinItem {
+  product_id: number
+  product_name: string
+  unit: string
+  location_id: number
+  location_name: string
+  quantity: number
+  min: number
+  need: number
+  source_location_id?: number
+  source_location_name?: string
+  source_quantity?: number
+  can_transfer: number
 }
 
-// Generic paginated list params
-export interface ListParams {
-  page?: number
-  page_size?: number
-  search?: string
+export interface Dashboard {
+  todo: {
+    invoices_to_review: number
+    transfers_in_transit: number
+    transfer_destinations: string[]
+    below_min: number
+    below_min_coverable: number
+  }
+  total_value: number
+  depots: {
+    id: number
+    name: string
+    city?: string
+    value: number
+    materials: number
+    below_min: number
+    incoming: number
+  }[]
+  recent_movements: StockMovement[]
+  below_min: BelowMinItem[]
+}
+
+export interface NavCounts {
+  invoices_to_review: number
+  transfers_in_transit: number
+}
+
+export interface SearchResults {
+  products: { id: number; name: string; sku?: string; quantity: number; unit: string }[]
+  invoices: { id: number; status: InvoiceStatus; invoice_number?: string; supplier?: string; file_name: string }[]
+  transfers: { id: number; reference: string; status: TransferStatus; source: string; destination: string }[]
 }

@@ -19,6 +19,7 @@ from app.database import Base, get_db
 from app.models.user import User
 from app.models.location import Location
 from app.models.product import Product
+from app.models.product_stock import ProductStock
 from app.routers.auth import create_access_token
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -47,8 +48,9 @@ def client(db_session):
     def override_get_db():
         try:
             yield db_session
-        finally:
-            pass
+        except Exception:
+            db_session.rollback()
+            raise
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
@@ -123,12 +125,30 @@ def grant_location(db_session):
 
 
 @pytest.fixture()
+def viewer_user(db_session):
+    return make_user(db_session, email="viewer@test.com", username="viewer", role="viewer")
+
+
+def add_stock(db_session, product: Product, location: Location, quantity: float, minimum=None) -> ProductStock:
+    """Put stock straight into a warehouse, keeping product.quantity in sync
+    the way inventory_service does."""
+    stock = ProductStock(product_id=product.id, location_id=location.id, quantity=quantity, min_quantity=minimum)
+    product.quantity = (product.quantity or 0) + quantity
+    db_session.add(stock)
+    db_session.commit()
+    return stock
+
+
+@pytest.fixture()
 def products_in_both_locations(db_session, two_locations):
+    """Product A: 10 in A (min 2). Product B: 1 in B (min 5, so below)."""
     loc_a, loc_b = two_locations
-    product_a = Product(name="Product A", quantity=10, min_stock_level=2, location_id=loc_a.id, unit_price=5)
-    product_b = Product(name="Product B", quantity=1, min_stock_level=5, location_id=loc_b.id, unit_price=10)
+    product_a = Product(name="Product A", quantity=0, min_stock_level=2, unit="copë", avg_cost=5)
+    product_b = Product(name="Product B", quantity=0, min_stock_level=5, unit="copë", avg_cost=10)
     db_session.add_all([product_a, product_b])
     db_session.commit()
+    add_stock(db_session, product_a, loc_a, 10)
+    add_stock(db_session, product_b, loc_b, 1)
     db_session.refresh(product_a)
     db_session.refresh(product_b)
     return product_a, product_b

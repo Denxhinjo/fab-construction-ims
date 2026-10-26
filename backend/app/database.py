@@ -24,5 +24,10 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        # A request that fails half-way (e.g. the third row of an invoice
+        # is refused after two were flushed) must leave nothing behind.
+        db.rollback()
+        raise
     finally:
         db.close()
