@@ -7,6 +7,7 @@ import { AlertTriangle, Check, ChevronLeft, ChevronRight, FileText, Minus, Plus,
 import { invoicesApi, locationsApi, suppliersApi } from '../../services/api'
 import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
 import Modal from '../../components/ui/Modal'
 import MaterialPicker from '../../components/ui/MaterialPicker'
 import { useAuth } from '../../context/AuthContext'
@@ -120,7 +121,7 @@ export default function InvoiceReview() {
   const qc = useQueryClient()
   const { user } = useAuth()
 
-  const { data: invoice, isLoading } = useQuery<Invoice>({
+  const { data: invoice, isLoading, isError, refetch } = useQuery<Invoice>({
     queryKey: ['invoice', invoiceId],
     queryFn: () => invoicesApi.get(invoiceId).then((r) => r.data),
   })
@@ -223,6 +224,7 @@ export default function InvoiceReview() {
     onSuccess: () => { setRejectAsk(false); toast.success(t('review.rejected')); done(nextInQueue()) },
   })
 
+  if (isError) return <LoadError onRetry={() => refetch()} />
   if (isLoading || !invoice) {
     return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
   }
