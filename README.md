@@ -50,7 +50,7 @@ Reading a scanned page takes about 5–10 seconds. The parser lives in `backend/
 ### Prerequisites
 
 - Python 3.10+
-- Node.js 20+
+- Node.js 22+
 - PostgreSQL 16
 - **Tesseract OCR** with Albanian data — only needed to read scans and photos; digital PDFs work without it.
   - Windows: install from [UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki), tick *Albanian* under additional languages, and set `TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe` in `backend/.env` if it's not on PATH.
