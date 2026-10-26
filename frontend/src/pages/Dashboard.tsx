@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { dashboardApi } from '../services/api'
 import Badge from '../components/ui/Badge'
 import Spinner from '../components/ui/Spinner'
+import LoadError from '../components/ui/LoadError'
 import { fmtLongToday, fmtMoney, fmtNum, fmtWhen, movementBadge, movementQty, movementRoute } from '../lib/format'
 import type { Dashboard as DashboardData } from '../types'
 
@@ -27,11 +28,12 @@ function TodoCard({ icon, tone, count, text, action, to }: {
 export default function Dashboard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { data, isLoading } = useQuery<DashboardData>({
+  const { data, isLoading, isError, refetch } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: () => dashboardApi.get().then((r) => r.data),
   })
 
+  if (isError) return <LoadError onRetry={() => refetch()} />
   if (isLoading || !data) {
     return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
   }

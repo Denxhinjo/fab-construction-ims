@@ -38,7 +38,9 @@
     "deleted": "U fshi me sukses",
     "actions": "Veprime",
     "all": "Të gjitha",
-    "close": "Mbyll"
+    "close": "Mbyll",
+    "loadError": "Faqja nuk u ngarkua. Serveri ktheu një gabim.",
+    "retry": "Provo përsëri"
   },
   "locations": {
     "title": "Depot",

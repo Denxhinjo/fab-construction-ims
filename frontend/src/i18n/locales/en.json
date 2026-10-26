@@ -38,7 +38,9 @@
     "deleted": "Deleted successfully",
     "all": "All",
     "actions": "Actions",
-    "close": "Close"
+    "close": "Close",
+    "loadError": "Couldn't load this page. The server returned an error.",
+    "retry": "Try again"
   },
   "locations": {
     "title": "Warehouses",
