@@ -23,4 +23,4 @@ class Supplier(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     products = relationship("Product", back_populates="supplier", lazy="dynamic")
-    purchase_orders = relationship("PurchaseOrder", back_populates="supplier")
+    aliases = relationship("SupplierProductAlias", back_populates="supplier", cascade="all, delete-orphan")

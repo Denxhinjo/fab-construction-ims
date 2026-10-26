@@ -3,12 +3,18 @@ from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
 from ..models.location import Location
-from ..models.product import Product
+from ..models.product_stock import ProductStock
 from ..schemas.location import LocationCreate, LocationUpdate, LocationOut
 from ..dependencies import get_current_user, require_admin
 from ..models.user import User
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
+
+
+def _material_count(db: Session, location_id: int) -> int:
+    return db.query(ProductStock).filter(
+        ProductStock.location_id == location_id, ProductStock.quantity > 0
+    ).count()
 
 
 @router.get("", response_model=List[LocationOut])
@@ -17,7 +23,7 @@ def list_locations(db: Session = Depends(get_db), _: User = Depends(get_current_
     result = []
     for loc in locations:
         out = LocationOut.model_validate(loc)
-        out.product_count = db.query(Product).filter(Product.location_id == loc.id).count()
+        out.product_count = _material_count(db, loc.id)
         result.append(out)
     return result
 
@@ -47,7 +53,7 @@ def get_location(
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
     out = LocationOut.model_validate(loc)
-    out.product_count = db.query(Product).filter(Product.location_id == loc.id).count()
+    out.product_count = _material_count(db, loc.id)
     return out
 
 
@@ -66,7 +72,7 @@ def update_location(
     db.commit()
     db.refresh(loc)
     out = LocationOut.model_validate(loc)
-    out.product_count = db.query(Product).filter(Product.location_id == loc.id).count()
+    out.product_count = _material_count(db, loc.id)
     return out
 
 
@@ -79,7 +85,7 @@ def delete_location(
     loc = db.query(Location).filter(Location.id == location_id).first()
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
-    if db.query(Product).filter(Product.location_id == location_id).count() > 0:
-        raise HTTPException(status_code=400, detail="Cannot delete location with existing products")
+    if _material_count(db, location_id) > 0:
+        raise HTTPException(status_code=400, detail="Cannot delete a warehouse that still holds stock")
     db.delete(loc)
     db.commit()

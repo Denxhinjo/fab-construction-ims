@@ -8,18 +8,14 @@ import Spinner from './components/ui/Spinner'
 
 // Route-level code-split — loaded on demand
 const Dashboard = lazy(() => import('./pages/Dashboard'))
-const InventoryList = lazy(() => import('./pages/Inventory/InventoryList'))
-const AddEditProduct = lazy(() => import('./pages/Inventory/AddEditProduct'))
-const ProductDetail = lazy(() => import('./pages/Inventory/ProductDetail'))
+const StockPage = lazy(() => import('./pages/Stock/StockPage'))
+const ReceiptsPage = lazy(() => import('./pages/Receipts/ReceiptsPage'))
+const InvoiceReview = lazy(() => import('./pages/Receipts/InvoiceReview'))
+const TransfersPage = lazy(() => import('./pages/Transfers/TransfersPage'))
+const HistoryPage = lazy(() => import('./pages/History/HistoryPage'))
 const LocationList = lazy(() => import('./pages/Locations/LocationList'))
 const SupplierList = lazy(() => import('./pages/Suppliers/SupplierList'))
-const WorkProcessList = lazy(() => import('./pages/WorkProcesses/WorkProcessList'))
-const AddEditWorkProcess = lazy(() => import('./pages/WorkProcesses/AddEditWorkProcess'))
 const UserManagement = lazy(() => import('./pages/Users/UserManagement'))
-const Reports = lazy(() => import('./pages/Reports/Reports'))
-const ProjectList = lazy(() => import('./pages/Projects/ProjectList'))
-const TransferList = lazy(() => import('./pages/Transfers/TransferList'))
-const PurchaseOrderList = lazy(() => import('./pages/PurchaseOrders/PurchaseOrderList'))
 
 function RouteFallback() {
   return (
@@ -54,20 +50,14 @@ function AppRoutes() {
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="inventory" element={<InventoryList />} />
-          <Route path="inventory/new" element={<AddEditProduct />} />
-          <Route path="inventory/:id" element={<ProductDetail />} />
-          <Route path="inventory/:id/edit" element={<AddEditProduct />} />
+          <Route path="stock" element={<StockPage />} />
+          <Route path="receipts" element={<ReceiptsPage />} />
+          <Route path="receipts/:id" element={<InvoiceReview />} />
+          <Route path="transfers" element={<TransfersPage />} />
+          <Route path="history" element={<HistoryPage />} />
           <Route path="locations" element={<LocationList />} />
           <Route path="suppliers" element={<SupplierList />} />
-          <Route path="work-processes" element={<WorkProcessList />} />
-          <Route path="work-processes/new" element={<AddEditWorkProcess />} />
-          <Route path="work-processes/:id/edit" element={<AddEditWorkProcess />} />
-          <Route path="projects" element={<ProjectList />} />
-          <Route path="transfers" element={<TransferList />} />
-          <Route path="purchase-orders" element={<PurchaseOrderList />} />
           <Route path="users" element={<AdminRoute><UserManagement /></AdminRoute>} />
-          <Route path="reports" element={<Reports />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

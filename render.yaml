@@ -5,12 +5,14 @@ databases:
 
 services:
   # ─── FastAPI Backend ────────────────────────────────────────────────
+  # Docker rather than the native Python runtime: reading scanned invoices
+  # needs the tesseract-ocr system package, installed by backend/Dockerfile.
   - type: web
     name: fab-ims-backend
-    env: python
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: alembic upgrade head && python seed_data.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: sh -c "alembic upgrade head && python seed_data.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -22,8 +24,6 @@ services:
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "60"
-      - key: MEDIA_DIR
-        value: /tmp/media
       - key: ALLOWED_ORIGINS
         value: https://fab-ims-frontend.onrender.com
 
