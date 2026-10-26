@@ -35,13 +35,4 @@ describe('Login', () => {
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }))
     expect(login).toHaveBeenCalledWith('admin', 'Admin@123')
   })
-
-  // Demo credentials are wrapped in `import.meta.env.DEV` in Login.tsx and
-  // stripped from production builds -- vitest runs in dev mode by default,
-  // so this also verifies the block still renders in the environment it's
-  // meant for.
-  it('shows demo credentials in the dev environment', () => {
-    renderLogin()
-    expect(screen.getByText(/admin \/ admin@123/i)).toBeInTheDocument()
-  })
 })

@@ -20,12 +20,9 @@ class Location(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    products = relationship("Product", back_populates="location", lazy="dynamic")
-    work_processes = relationship("WorkProcess", back_populates="location", lazy="dynamic")
     permitted_users = relationship(
         "User", secondary=user_location_permissions, back_populates="permitted_locations"
     )
     product_stocks = relationship("ProductStock", back_populates="location", cascade="all, delete-orphan")
-    purchase_orders = relationship("PurchaseOrder", back_populates="destination_location")
     outgoing_transfers = relationship("WarehouseTransfer", foreign_keys="WarehouseTransfer.source_location_id", back_populates="source_location")
     incoming_transfers = relationship("WarehouseTransfer", foreign_keys="WarehouseTransfer.destination_location_id", back_populates="destination_location")

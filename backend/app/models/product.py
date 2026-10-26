@@ -1,10 +1,13 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Text, Float, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
 
 
 class Product(Base):
+    """A material. Its stock lives per warehouse in ProductStock; `quantity`
+    is the cached total across all warehouses, kept in sync by
+    inventory_service.record_movement."""
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -13,19 +16,15 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     description = Column(Text, nullable=True)
     quantity = Column(Float, default=0, nullable=False)
-    unit = Column(String(50), default="pcs", nullable=False)
+    unit = Column(String(50), default="copë", nullable=False)
+    # Default minimum for warehouses that don't set their own (ProductStock.min_quantity).
     min_stock_level = Column(Float, default=0, nullable=False)
-    reorder_quantity = Column(Float, default=0, nullable=True)
     unit_price = Column(Float, nullable=True)
     latest_cost = Column(Float, nullable=True)
     avg_cost = Column(Float, nullable=True)
+    # Legacy single "home" warehouse from before per-warehouse stock. No longer read.
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
-    brand = Column(String(100), nullable=True)
-    barcode = Column(String(100), nullable=True, index=True)
-    image_url = Column(String(500), nullable=True)
-    image_url_2 = Column(String(500), nullable=True)
-    image_url_3 = Column(String(500), nullable=True)
     price_currency = Column(String(3), default="ALL", nullable=False)
     status = Column(String(30), default="active", nullable=False)
     notes = Column(Text, nullable=True)
@@ -35,15 +34,13 @@ class Product(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     category = relationship("Category", back_populates="products")
-    location = relationship("Location", back_populates="products")
     supplier = relationship("Supplier", back_populates="products")
-    archived_by = relationship("User", foreign_keys=[archived_by_id])
     stock_movements = relationship("StockMovement", back_populates="product", lazy="dynamic")
-    work_processes = relationship("WorkProcess", back_populates="product", lazy="dynamic")
     location_stocks = relationship("ProductStock", back_populates="product", cascade="all, delete-orphan")
     transfer_items = relationship("WarehouseTransferItem", back_populates="product")
-    po_items = relationship("PurchaseOrderItem", back_populates="product")
 
     @property
-    def is_low_stock(self) -> bool:
-        return self.quantity <= self.min_stock_level and self.min_stock_level > 0
+    def cost(self) -> float:
+        """Cost used to value stock: weighted average from accepted invoices,
+        falling back to the last invoice price, then the manual price."""
+        return self.avg_cost or self.latest_cost or self.unit_price or 0.0

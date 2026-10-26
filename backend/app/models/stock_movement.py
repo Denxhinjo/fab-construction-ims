@@ -10,9 +10,6 @@ MOVEMENT_TYPES = [
     "Purchase Receipt",
     "Warehouse Transfer Out",
     "Warehouse Transfer In",
-    "Project Issue",
-    "Project Return",
-    "Supplier Return",
     "Adjustment In",
     "Adjustment Out",
     "Opening Balance",
@@ -23,8 +20,6 @@ INBOUND_TYPES = {
     "Stock In",
     "Purchase Receipt",
     "Warehouse Transfer In",
-    "Project Return",
-    "Supplier Return",
     "Adjustment In",
     "Opening Balance",
 }
@@ -33,7 +28,6 @@ INBOUND_TYPES = {
 OUTBOUND_TYPES = {
     "Stock Out",
     "Warehouse Transfer Out",
-    "Project Issue",
     "Adjustment Out",
 }
 
@@ -55,10 +49,12 @@ class StockMovement(Base):
     # Location context
     source_location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
     destination_location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
-    # Business entity context
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
-    purchase_order_id = Column(Integer, ForeignKey("purchase_orders.id"), nullable=True)
+    # Business entity context. project_id / purchase_order_id belong to
+    # features that were removed; the columns stay so old rows keep their data.
+    project_id = Column(Integer, nullable=True)
+    purchase_order_id = Column(Integer, nullable=True)
     transfer_id = Column(Integer, ForeignKey("warehouse_transfers.id"), nullable=True)
+    invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=True, index=True)
     # Approval/receiving context
     approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     received_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -68,7 +64,5 @@ class StockMovement(Base):
     user = relationship("User", foreign_keys=[user_id], back_populates="stock_movements")
     source_location = relationship("Location", foreign_keys=[source_location_id])
     destination_location = relationship("Location", foreign_keys=[destination_location_id])
-    project = relationship("Project", back_populates="stock_movements")
-    purchase_order = relationship("PurchaseOrder", back_populates="stock_movements")
     approved_by = relationship("User", foreign_keys=[approved_by_id])
     received_by = relationship("User", foreign_keys=[received_by_id])

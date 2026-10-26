@@ -1,96 +1,115 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from typing import Optional
-from datetime import datetime, date, timezone
+"""
+Warehouse transfers. Sending a transfer takes the stock out of the source
+warehouse immediately; it enters the destination when someone there
+confirms what arrived. A shortfall closes the transfer as "received with
+differences" and the missing quantity never enters stock.
+"""
 import math
+from datetime import date, datetime, timezone
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models.warehouse_transfer import WarehouseTransfer, WarehouseTransferItem
-from ..schemas.warehouse_transfer import (
-    WarehouseTransferCreate, WarehouseTransferUpdate, WarehouseTransferOut,
-    WarehouseTransferListOut, ReceiveTransferIn,
-)
 from ..dependencies import get_current_user
+from ..models.location import Location
+from ..models.product import Product
 from ..models.user import User
-from ..services.inventory_service import record_movement, generate_reference
+from ..models.warehouse_transfer import OPEN_TRANSFER_STATUSES, WarehouseTransfer, WarehouseTransferItem
+from ..schemas.warehouse_transfer import (
+    ReceiveTransferIn, WarehouseTransferCreate, WarehouseTransferListOut, WarehouseTransferOut,
+)
+from ..services.inventory_service import generate_reference, record_movement
+from ..services.permissions import require_location_access
 
 router = APIRouter(prefix="/api/transfers", tags=["transfers"])
 
-ALLOWED_TRANSITIONS = {
-    "DRAFT": ["PENDING", "CANCELLED"],
-    "PENDING": ["APPROVED", "CANCELLED"],
-    "APPROVED": ["DISPATCHED", "CANCELLED"],
-    "DISPATCHED": ["IN_TRANSIT", "RECEIVED"],
-    "IN_TRANSIT": ["RECEIVED"],
-    "RECEIVED": [],
-    "CANCELLED": [],
+# Filter groups the UI asks for, mapped to stored statuses.
+STATUS_GROUPS = {
+    "open": list(OPEN_TRANSFER_STATUSES),
+    "closed": ["RECEIVED", "RECEIVED_PARTIAL"],
 }
 
-MANAGER_ROLES = {"admin", "warehouse_manager"}
 
-
-def _check_manager(user: User):
-    if user.role not in MANAGER_ROLES:
-        raise HTTPException(status_code=403, detail="Warehouse manager or admin access required")
+def _writer(user: User) -> None:
+    if user.role == "viewer":
+        raise HTTPException(status_code=403, detail="Read-only users cannot move stock")
 
 
 @router.get("", response_model=WarehouseTransferListOut)
 def list_transfers(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    status: Optional[str] = None,
-    source_location_id: Optional[int] = None,
-    destination_location_id: Optional[int] = None,
+    status_filter: Optional[str] = Query(None, alias="status"),
+    location_id: Optional[int] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ):
     query = db.query(WarehouseTransfer)
-    if status:
-        query = query.filter(WarehouseTransfer.status == status)
-    if source_location_id:
-        query = query.filter(WarehouseTransfer.source_location_id == source_location_id)
-    if destination_location_id:
-        query = query.filter(WarehouseTransfer.destination_location_id == destination_location_id)
-    query = query.order_by(WarehouseTransfer.created_at.desc())
+    if status_filter:
+        query = query.filter(WarehouseTransfer.status.in_(STATUS_GROUPS.get(status_filter, [status_filter])))
+    if location_id:
+        query = query.filter(
+            (WarehouseTransfer.source_location_id == location_id)
+            | (WarehouseTransfer.destination_location_id == location_id)
+        )
+    order = WarehouseTransfer.received_at.desc() if status_filter == "closed" else WarehouseTransfer.created_at.desc()
+    query = query.order_by(order, WarehouseTransfer.id.desc())
     total = query.count()
     items = query.offset((page - 1) * page_size).limit(page_size).all()
     return WarehouseTransferListOut(
         items=[WarehouseTransferOut.model_validate(t) for t in items],
-        total=total,
-        page=page,
-        page_size=page_size,
+        total=total, page=page, page_size=page_size,
         total_pages=math.ceil(total / page_size) if total > 0 else 1,
     )
 
 
 @router.post("", response_model=WarehouseTransferOut, status_code=status.HTTP_201_CREATED)
-def create_transfer(
+def send_transfer(
     payload: WarehouseTransferCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    year = datetime.now(timezone.utc).year
-    reference = generate_reference(db, "TR", WarehouseTransfer, "reference", year)
+    _writer(current_user)
+    for loc_id in (payload.source_location_id, payload.destination_location_id):
+        if not db.get(Location, loc_id):
+            raise HTTPException(status_code=400, detail="Warehouse not found")
+    require_location_access(current_user, payload.source_location_id, "You can't send from this warehouse")
 
+    now = datetime.now(timezone.utc)
     transfer = WarehouseTransfer(
-        reference=reference,
+        reference=generate_reference(db, "TR", WarehouseTransfer, "reference", now.year),
         source_location_id=payload.source_location_id,
         destination_location_id=payload.destination_location_id,
-        notes=payload.notes,
+        driver=(payload.driver or "").strip() or None,
+        notes=(payload.notes or "").strip() or None,
         requested_by_id=current_user.id,
-        status="DRAFT",
+        dispatched_by_id=current_user.id,
+        dispatched_at=now,
+        status="IN_TRANSIT",
     )
     db.add(transfer)
     db.flush()
 
     for item_data in payload.items:
-        item = WarehouseTransferItem(
-            transfer_id=transfer.id,
+        if not db.get(Product, item_data.product_id):
+            raise HTTPException(status_code=400, detail="Material not found")
+        db.add(WarehouseTransferItem(
+            transfer_id=transfer.id, product_id=item_data.product_id, quantity=item_data.quantity,
+        ))
+        record_movement(
+            db,
             product_id=item_data.product_id,
+            movement_type="Warehouse Transfer Out",
             quantity=item_data.quantity,
-            notes=item_data.notes,
+            user_id=current_user.id,
+            movement_date=date.today(),
+            source_location_id=transfer.source_location_id,
+            destination_location_id=transfer.destination_location_id,
+            transfer_id=transfer.id,
+            reference_number=transfer.reference,
         )
-        db.add(item)
 
     db.commit()
     db.refresh(transfer)
@@ -98,83 +117,10 @@ def create_transfer(
 
 
 @router.get("/{transfer_id}", response_model=WarehouseTransferOut)
-def get_transfer(
-    transfer_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    transfer = db.query(WarehouseTransfer).filter(WarehouseTransfer.id == transfer_id).first()
+def get_transfer(transfer_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    transfer = db.get(WarehouseTransfer, transfer_id)
     if not transfer:
         raise HTTPException(status_code=404, detail="Transfer not found")
-    return WarehouseTransferOut.model_validate(transfer)
-
-
-@router.put("/{transfer_id}", response_model=WarehouseTransferOut)
-def update_transfer(
-    transfer_id: int,
-    payload: WarehouseTransferUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    transfer = db.query(WarehouseTransfer).filter(WarehouseTransfer.id == transfer_id).first()
-    if not transfer:
-        raise HTTPException(status_code=404, detail="Transfer not found")
-
-    if payload.status and payload.status != transfer.status:
-        allowed = ALLOWED_TRANSITIONS.get(transfer.status, [])
-        if payload.status not in allowed:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot transition from {transfer.status} to {payload.status}. Allowed: {allowed}",
-            )
-
-        if payload.status == "APPROVED":
-            _check_manager(current_user)
-            transfer.approved_by_id = current_user.id
-            transfer.approved_at = datetime.now(timezone.utc)
-
-        elif payload.status == "DISPATCHED":
-            _check_manager(current_user)
-            transfer.dispatched_by_id = current_user.id
-            transfer.dispatched_at = datetime.now(timezone.utc)
-            # Create WAREHOUSE_TRANSFER_OUT movements for each item
-            for item in transfer.items:
-                record_movement(
-                    db,
-                    product_id=item.product_id,
-                    movement_type="Warehouse Transfer Out",
-                    quantity=item.quantity,
-                    user_id=current_user.id,
-                    movement_date=date.today(),
-                    source_location_id=transfer.source_location_id,
-                    destination_location_id=transfer.destination_location_id,
-                    transfer_id=transfer.id,
-                    reason=f"Transfer {transfer.reference} dispatched",
-                )
-
-        transfer.status = payload.status
-
-    if payload.notes is not None:
-        transfer.notes = payload.notes
-
-    # Allow item updates only in DRAFT status
-    if payload.items is not None:
-        if transfer.status != "DRAFT":
-            raise HTTPException(status_code=400, detail="Items can only be modified when transfer is in DRAFT status")
-        for item in transfer.items:
-            db.delete(item)
-        db.flush()
-        for item_data in payload.items:
-            item = WarehouseTransferItem(
-                transfer_id=transfer.id,
-                product_id=item_data.product_id,
-                quantity=item_data.quantity,
-                notes=item_data.notes,
-            )
-            db.add(item)
-
-    db.commit()
-    db.refresh(transfer)
     return WarehouseTransferOut.model_validate(transfer)
 
 
@@ -185,49 +131,57 @@ def receive_transfer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Mark items as received, creating WAREHOUSE_TRANSFER_IN movements."""
-    transfer = db.query(WarehouseTransfer).filter(WarehouseTransfer.id == transfer_id).first()
+    _writer(current_user)
+    transfer = db.get(WarehouseTransfer, transfer_id)
     if not transfer:
         raise HTTPException(status_code=404, detail="Transfer not found")
-    if transfer.status not in ("DISPATCHED", "IN_TRANSIT"):
-        raise HTTPException(status_code=400, detail="Transfer must be DISPATCHED or IN_TRANSIT to receive")
-    if transfer.status == "RECEIVED":
-        raise HTTPException(status_code=400, detail="Transfer has already been fully received")
+    if transfer.status not in OPEN_TRANSFER_STATUSES:
+        raise HTTPException(status_code=400, detail="This transfer has already been received")
+    require_location_access(current_user, transfer.destination_location_id, "You can't receive into this warehouse")
 
-    item_map = {item.id: item for item in transfer.items}
+    if payload.items is None:
+        arrived = {item.id: item.quantity - item.received_quantity for item in transfer.items}
+    else:
+        item_ids = {item.id for item in transfer.items}
+        arrived = {}
+        for recv in payload.items:
+            if recv.item_id not in item_ids:
+                raise HTTPException(status_code=400, detail=f"Transfer item {recv.item_id} not found")
+            arrived[recv.item_id] = recv.received_quantity
 
-    for recv in payload.items:
-        item = item_map.get(recv.item_id)
-        if not item:
-            raise HTTPException(status_code=400, detail=f"Transfer item {recv.item_id} not found")
+    for item in transfer.items:
         remaining = item.quantity - item.received_quantity
-        if recv.received_quantity > remaining:
+        qty = arrived.get(item.id, 0.0)
+        if qty > remaining + 1e-9:
             raise HTTPException(
                 status_code=400,
-                detail=f"Cannot receive {recv.received_quantity} for item {recv.item_id}. Remaining: {remaining}",
+                detail=f"{item.product.name}: received {qty:g} but only {remaining:g} were sent",
             )
-        if recv.received_quantity > 0:
+        if qty > 0:
             record_movement(
                 db,
                 product_id=item.product_id,
                 movement_type="Warehouse Transfer In",
-                quantity=recv.received_quantity,
+                quantity=qty,
                 user_id=current_user.id,
                 movement_date=date.today(),
                 source_location_id=transfer.source_location_id,
                 destination_location_id=transfer.destination_location_id,
                 transfer_id=transfer.id,
-                reason=f"Transfer {transfer.reference} received",
+                reference_number=transfer.reference,
                 received_by_id=current_user.id,
             )
-            item.received_quantity += recv.received_quantity
+            item.received_quantity += qty
+        short = item.quantity - item.received_quantity
+        if short > 1e-9:
+            item.notes = f"Mungojnë {short:g}"
 
-    # Determine if fully received
-    all_received = all(item.received_quantity >= item.quantity for item in transfer.items)
-    transfer.status = "RECEIVED" if all_received else "IN_TRANSIT"
-    if all_received:
-        transfer.received_by_id = current_user.id
-        transfer.received_at = datetime.now(timezone.utc)
+    complete = all(item.received_quantity >= item.quantity - 1e-9 for item in transfer.items)
+    transfer.status = "RECEIVED" if complete else "RECEIVED_PARTIAL"
+    transfer.received_by_id = current_user.id
+    transfer.received_at = datetime.now(timezone.utc)
+    if payload.notes:
+        transfer.notes = f"{transfer.notes}\n{payload.notes}" if transfer.notes else payload.notes
 
     db.commit()
     db.refresh(transfer)

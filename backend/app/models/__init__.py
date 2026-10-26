@@ -5,10 +5,9 @@ from .supplier import Supplier
 from .product import Product
 from .product_stock import ProductStock
 from .stock_movement import StockMovement
-from .work_process import WorkProcess
-from .project import Project
 from .warehouse_transfer import WarehouseTransfer, WarehouseTransferItem
-from .purchase_order import PurchaseOrder, PurchaseOrderItem
+from .invoice import Invoice, InvoiceLine
+from .supplier_product_alias import SupplierProductAlias
 from .audit_log import AuditLog
 
 __all__ = [
@@ -19,11 +18,10 @@ __all__ = [
     "Product",
     "ProductStock",
     "StockMovement",
-    "WorkProcess",
-    "Project",
     "WarehouseTransfer",
     "WarehouseTransferItem",
-    "PurchaseOrder",
-    "PurchaseOrderItem",
+    "Invoice",
+    "InvoiceLine",
+    "SupplierProductAlias",
     "AuditLog",
 ]

@@ -1,37 +1,48 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 from .category import CategorySummary
-from .location import LocationSummary
 from .supplier import SupplierSummary
 
 
-class ProductBase(BaseModel):
+class ProductWrite(BaseModel):
     name: str
     sku: Optional[str] = None
-    category_id: Optional[int] = None
-    description: Optional[str] = None
-    quantity: float = 0
-    unit: str = "pcs"
+    # Free text; an unknown name creates the category.
+    category_name: Optional[str] = None
+    unit: str = "copë"
     min_stock_level: float = 0
     unit_price: Optional[float] = None
-    price_currency: str = "ALL"
-    location_id: Optional[int] = None
-    supplier_id: Optional[int] = None
-    status: str = "active"
     notes: Optional[str] = None
+    # Per-warehouse minimums, keyed by location id. Omitted warehouses keep theirs.
+    location_mins: dict[int, Optional[float]] = {}
+
+    @field_validator("name")
+    @classmethod
+    def name_required(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Name is required")
+        return v.strip()
+
+    @field_validator("sku")
+    @classmethod
+    def blank_sku_is_none(cls, v: Optional[str]) -> Optional[str]:
+        return v.strip() or None if v else None
 
 
-class ProductOut(ProductBase):
+class ProductOut(BaseModel):
     id: int
-    image_url: Optional[str] = None
-    image_url_2: Optional[str] = None
-    image_url_3: Optional[str] = None
-    is_low_stock: bool = False
-    archived_at: Optional[datetime] = None
-    archived_by_id: Optional[int] = None
+    name: str
+    sku: Optional[str] = None
+    unit: str
+    quantity: float
+    min_stock_level: float
+    unit_price: Optional[float] = None
+    avg_cost: Optional[float] = None
+    latest_cost: Optional[float] = None
+    status: str
+    notes: Optional[str] = None
     category: Optional[CategorySummary] = None
-    location: Optional[LocationSummary] = None
     supplier: Optional[SupplierSummary] = None
     created_at: datetime
     updated_at: datetime
@@ -49,9 +60,47 @@ class ProductSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class ProductListOut(BaseModel):
-    items: list[ProductOut]
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
+# ─── Stock matrix (one row per material, one cell per warehouse) ─────────────
+class StockCell(BaseModel):
+    quantity: float
+    min: float
+    below_min: bool
+
+
+class StockRow(BaseModel):
+    id: int
+    name: str
+    sku: Optional[str] = None
+    category: Optional[str] = None
+    unit: str
+    total: float
+    avg_cost: Optional[float] = None
+    last_supplier: Optional[str] = None
+    min_stock_level: float
+    notes: Optional[str] = None
+    cells: dict[int, StockCell]
+
+
+class StockLocation(BaseModel):
+    id: int
+    name: str
+
+
+class StockOut(BaseModel):
+    locations: list[StockLocation]
+    rows: list[StockRow]
+    total_materials: int
+
+
+class AdjustmentIn(BaseModel):
+    product_id: int
+    location_id: int
+    counted_quantity: float
+    note: Optional[str] = None
+
+    @field_validator("counted_quantity")
+    @classmethod
+    def not_negative(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("Counted quantity cannot be negative")
+        return v

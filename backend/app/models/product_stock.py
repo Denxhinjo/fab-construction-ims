@@ -12,6 +12,8 @@ class ProductStock(Base):
     location_id = Column(Integer, ForeignKey("locations.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Float, default=0.0, nullable=False)
     reserved_quantity = Column(Float, default=0.0, nullable=False)
+    # Per-warehouse minimum; NULL means "use the product's min_stock_level".
+    min_quantity = Column(Float, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
@@ -24,3 +26,13 @@ class ProductStock(Base):
     @property
     def available_quantity(self) -> float:
         return max(0.0, self.quantity - self.reserved_quantity)
+
+    @property
+    def effective_min(self) -> float:
+        if self.min_quantity is not None:
+            return self.min_quantity
+        return self.product.min_stock_level if self.product else 0.0
+
+    @property
+    def is_below_min(self) -> bool:
+        return self.effective_min > 0 and self.quantity < self.effective_min

@@ -1,15 +1,11 @@
 """
-Central location-permission helpers shared by every router that scopes data
-by warehouse access (products, stock movements, work processes, dashboard).
-
-Admins are unrestricted. Everyone else only sees/affects data tied to a
-location they've been explicitly granted via user_location_permissions --
-a record with no location at all (location_id is None) is only visible to
-admins, since there's no permission grant that could cover it.
+Warehouse-permission helpers. Everyone signed in can see stock in every
+warehouse; changing stock in a warehouse (receiving an invoice into it,
+sending a transfer from it, receiving a transfer into it, correcting a
+count) needs a grant via user_location_permissions. Admins are unrestricted.
 """
 from typing import Optional
 from fastapi import HTTPException
-from sqlalchemy.orm import Query
 from ..models.user import User
 
 
@@ -33,10 +29,3 @@ def require_location_access(
     if not can_access_location(user, location_id):
         raise HTTPException(status_code=403, detail=detail)
 
-
-def scope_query_by_location(query: Query, model, user: User) -> Query:
-    """Filters `query` to the caller's permitted locations for non-admins.
-    `model` must expose a `location_id` column. Admins get `query` untouched."""
-    if user.role == "admin":
-        return query
-    return query.filter(model.location_id.in_(permitted_location_ids(user)))

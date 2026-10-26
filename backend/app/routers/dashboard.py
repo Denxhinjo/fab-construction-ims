@@ -1,198 +1,177 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from datetime import date, timedelta
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, joinedload
+
 from ..database import get_db
-from ..models.product import Product
-from ..models.location import Location
-from ..models.stock_movement import StockMovement
-from ..models.work_process import WorkProcess
-from ..models.user import User
-from ..models.project import Project
-from ..models.warehouse_transfer import WarehouseTransfer
-from ..models.purchase_order import PurchaseOrder
 from ..dependencies import get_current_user
-from ..services.permissions import permitted_location_ids
+from ..models.invoice import EDITABLE_INVOICE_STATUSES, Invoice
+from ..models.location import Location
+from ..models.product import Product
+from ..models.product_stock import ProductStock
+from ..models.stock_movement import StockMovement
+from ..models.supplier import Supplier
+from ..models.user import User
+from ..models.warehouse_transfer import OPEN_TRANSFER_STATUSES, WarehouseTransfer
+from ..schemas.stock_movement import StockMovementOut
 
-router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+router = APIRouter(prefix="/api", tags=["dashboard"])
 
 
-@router.get("/stats")
-def get_dashboard_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    is_admin = current_user.role in ("admin", "warehouse_manager")
-    permitted = permitted_location_ids(current_user)
-
-    product_query = db.query(Product).filter(Product.status != "archived")
-    wp_query = db.query(WorkProcess)
-    if not is_admin:
-        product_query = product_query.filter(Product.location_id.in_(permitted))
-        wp_query = wp_query.filter(WorkProcess.location_id.in_(permitted))
-
-    total_products = product_query.count()
-    low_stock_products = product_query.filter(
-        Product.quantity <= Product.min_stock_level,
-        Product.min_stock_level > 0,
-    ).count()
-    total_locations = (
-        db.query(Location).filter(Location.is_active == True).count()
-        if is_admin
-        else len(permitted)
+def _below_min(db: Session) -> list[dict]:
+    """Every (material, warehouse) under its minimum, with the warehouse
+    that could cover the gap by transfer: the one holding the most stock
+    above its own minimum."""
+    stocks = (
+        db.query(ProductStock)
+        .options(joinedload(ProductStock.product), joinedload(ProductStock.location))
+        .join(Product, ProductStock.product_id == Product.id)
+        .join(Location, ProductStock.location_id == Location.id)
+        .filter(Product.status != "archived", Location.is_active == True)  # noqa: E712
+        .all()
     )
-    active_work_processes = wp_query.filter(
-        WorkProcess.status.in_(["Not Started", "Started", "In Process"])
-    ).count()
-    completed_work_processes = wp_query.filter(WorkProcess.status == "Done").count()
-    total_users = db.query(User).filter(User.is_active == True).count()
+    by_product: dict[int, list[ProductStock]] = {}
+    for s in stocks:
+        by_product.setdefault(s.product_id, []).append(s)
 
-    total_inventory_value = (
-        product_query.with_entities(
-            func.sum(Product.quantity * func.coalesce(Product.unit_price, 0))
-        ).scalar() or 0
+    result = []
+    for s in stocks:
+        if not s.is_below_min:
+            continue
+        need = s.effective_min - s.quantity
+        donors = [
+            (o.quantity - o.effective_min, o)
+            for o in by_product[s.product_id]
+            if o.location_id != s.location_id and o.quantity - o.effective_min > 0
+        ]
+        surplus, donor = max(donors, key=lambda d: d[0]) if donors else (0, None)
+        result.append({
+            "product_id": s.product_id,
+            "product_name": s.product.name,
+            "unit": s.product.unit,
+            "location_id": s.location_id,
+            "location_name": s.location.name,
+            "quantity": s.quantity,
+            "min": s.effective_min,
+            "need": need,
+            "source_location_id": donor.location_id if donor else None,
+            "source_location_name": donor.location.name if donor else None,
+            "source_quantity": donor.quantity if donor else None,
+            "can_transfer": min(surplus, need) if donor else 0,
+        })
+    result.sort(key=lambda r: r["quantity"] / r["min"])
+    return result
+
+
+@router.get("/dashboard")
+def get_dashboard(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    locations = db.query(Location).filter(Location.is_active == True).order_by(Location.id).all()  # noqa: E712
+    below = _below_min(db)
+
+    in_transit = (
+        db.query(WarehouseTransfer)
+        .filter(WarehouseTransfer.status.in_(OPEN_TRANSFER_STATUSES))
+        .all()
     )
+    incoming_by_loc: dict[int, int] = {}
+    for t in in_transit:
+        incoming_by_loc[t.destination_location_id] = incoming_by_loc.get(t.destination_location_id, 0) + 1
 
-    # New entity counts
-    active_projects = db.query(Project).filter(Project.status == "ACTIVE", Project.is_active == True).count()
-    pending_transfers = db.query(WarehouseTransfer).filter(
-        WarehouseTransfer.status.in_(["PENDING", "APPROVED", "DISPATCHED", "IN_TRANSIT"])
-    ).count()
-    open_purchase_orders = db.query(PurchaseOrder).filter(
-        PurchaseOrder.status.in_(["DRAFT", "PENDING_APPROVAL", "APPROVED", "SENT", "PARTIALLY_RECEIVED"])
-    ).count()
-
-    def scoped_movements(query):
-        if is_admin:
-            return query
-        return query.join(Product, StockMovement.product_id == Product.id).filter(
-            Product.location_id.in_(permitted)
+    depots = []
+    for loc in locations:
+        stocks = (
+            db.query(ProductStock).options(joinedload(ProductStock.product))
+            .join(Product)
+            .filter(ProductStock.location_id == loc.id, Product.status != "archived")
+            .all()
         )
+        depots.append({
+            "id": loc.id,
+            "name": loc.name,
+            "city": loc.city,
+            "value": round(sum(s.quantity * s.product.cost for s in stocks if s.quantity > 0), 2),
+            "materials": sum(1 for s in stocks if s.quantity > 0),
+            "below_min": sum(1 for b in below if b["location_id"] == loc.id),
+            "incoming": incoming_by_loc.get(loc.id, 0),
+        })
 
-    seven_days_ago = date.today() - timedelta(days=7)
-    recent_movements = (
-        scoped_movements(db.query(StockMovement))
-        .filter(StockMovement.movement_date >= seven_days_ago)
-        .order_by(StockMovement.created_at.desc())
-        .limit(10)
+    destinations = sorted({t.destination_location.name for t in in_transit})
+    recent = (
+        db.query(StockMovement)
+        .order_by(StockMovement.created_at.desc(), StockMovement.id.desc())
+        .limit(6)
         .all()
     )
-
-    recent_activity = [
-        {
-            "id": m.id,
-            "type": m.movement_type,
-            "product_name": m.product.name if m.product else "Unknown",
-            "quantity": m.quantity,
-            "unit": m.product.unit if m.product else "",
-            "user_name": m.user.full_name if m.user else "Unknown",
-            "date": str(m.movement_date),
-            "created_at": m.created_at.isoformat(),
-        }
-        for m in recent_movements
-    ]
-
-    thirty_days_ago = date.today() - timedelta(days=30)
-    stock_in_total = scoped_movements(db.query(func.sum(StockMovement.quantity))).filter(
-        StockMovement.movement_type.in_(["Stock In", "Purchase Receipt", "Opening Balance"]),
-        StockMovement.movement_date >= thirty_days_ago,
-    ).scalar() or 0
-
-    stock_out_total = scoped_movements(db.query(func.sum(StockMovement.quantity))).filter(
-        StockMovement.movement_type.in_(["Stock Out", "Project Issue"]),
-        StockMovement.movement_date >= thirty_days_ago,
-    ).scalar() or 0
-
-    sixty_days_ago = date.today() - timedelta(days=60)
-    stock_in_prev_total = scoped_movements(db.query(func.sum(StockMovement.quantity))).filter(
-        StockMovement.movement_type.in_(["Stock In", "Purchase Receipt", "Opening Balance"]),
-        StockMovement.movement_date >= sixty_days_ago,
-        StockMovement.movement_date < thirty_days_ago,
-    ).scalar() or 0
-
-    stock_out_prev_total = scoped_movements(db.query(func.sum(StockMovement.quantity))).filter(
-        StockMovement.movement_type.in_(["Stock Out", "Project Issue"]),
-        StockMovement.movement_date >= sixty_days_ago,
-        StockMovement.movement_date < thirty_days_ago,
-    ).scalar() or 0
-
-    top_moved_rows = (
-        scoped_movements(
-            db.query(StockMovement.product_id, func.sum(StockMovement.quantity).label("total_qty"))
-        )
-        .filter(StockMovement.movement_date >= thirty_days_ago)
-        .group_by(StockMovement.product_id)
-        .order_by(func.sum(StockMovement.quantity).desc())
-        .limit(5)
-        .all()
-    )
-    top_moved_products = []
-    for product_id, total_qty in top_moved_rows:
-        product = db.query(Product).filter(Product.id == product_id).first()
-        if product:
-            top_moved_products.append({
-                "id": product.id,
-                "name": product.name,
-                "quantity": float(total_qty),
-                "unit": product.unit,
-            })
-
-    week_start = date.today() - timedelta(days=date.today().weekday())
-    last_week_start = week_start - timedelta(days=7)
-    movements_this_week = scoped_movements(db.query(StockMovement)).filter(
-        StockMovement.movement_date >= week_start,
-    ).count()
-    movements_last_week = scoped_movements(db.query(StockMovement)).filter(
-        StockMovement.movement_date >= last_week_start,
-        StockMovement.movement_date < week_start,
-    ).count()
-
-    wp_by_status = {
-        stat: wp_query.filter(WorkProcess.status == stat).count()
-        for stat in ["Not Started", "Started", "In Process", "Done"]
-    }
-
-    low_stock_items = (
-        product_query.filter(Product.quantity <= Product.min_stock_level, Product.min_stock_level > 0)
-        .order_by(Product.quantity.asc())
-        .limit(5)
-        .all()
-    )
-    low_stock_list = [
-        {
-            "id": p.id,
-            "name": p.name,
-            "quantity": p.quantity,
-            "min_stock_level": p.min_stock_level,
-            "unit": p.unit,
-            "location": p.location.name if p.location else None,
-        }
-        for p in low_stock_items
-    ]
-
     return {
-        "stats": {
-            "total_products": total_products,
-            "low_stock_products": low_stock_products,
-            "total_locations": total_locations,
-            "active_work_processes": active_work_processes,
-            "completed_work_processes": completed_work_processes,
-            "total_users": total_users,
-            "total_inventory_value": float(total_inventory_value),
-            "active_projects": active_projects,
-            "pending_transfers": pending_transfers,
-            "open_purchase_orders": open_purchase_orders,
+        "todo": {
+            "invoices_to_review": db.query(Invoice).filter(Invoice.status.in_(EDITABLE_INVOICE_STATUSES)).count(),
+            "transfers_in_transit": len(in_transit),
+            "transfer_destinations": destinations,
+            "below_min": len(below),
+            "below_min_coverable": sum(1 for b in below if b["can_transfer"] > 0),
         },
-        "stock_summary": {
-            "stock_in_30d": float(stock_in_total),
-            "stock_out_30d": float(stock_out_total),
-            "stock_in_prev_30d": float(stock_in_prev_total),
-            "stock_out_prev_30d": float(stock_out_prev_total),
-        },
-        "work_process_by_status": wp_by_status,
-        "recent_activity": recent_activity,
-        "low_stock_items": low_stock_list,
-        "top_moved_products": top_moved_products,
-        "movements_this_week": movements_this_week,
-        "movements_last_week": movements_last_week,
+        "total_value": round(sum(d["value"] for d in depots), 2),
+        "depots": depots,
+        "recent_movements": [StockMovementOut.model_validate(m) for m in recent],
+        "below_min": below[:8],
     }
+
+
+@router.get("/dashboard/counts")
+def nav_counts(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    """Badge numbers for the sidebar; cheap enough to poll."""
+    return {
+        "invoices_to_review": db.query(Invoice).filter(Invoice.status.in_(EDITABLE_INVOICE_STATUSES)).count(),
+        "transfers_in_transit": db.query(WarehouseTransfer).filter(
+            WarehouseTransfer.status.in_(OPEN_TRANSFER_STATUSES)
+        ).count(),
+    }
+
+
+@router.get("/dashboard/below-min")
+def below_min(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    return _below_min(db)
+
+
+@router.get("/search")
+def search(
+    q: str = Query(..., min_length=2),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    like = f"%{q.strip()}%"
+    products = (
+        db.query(Product)
+        .filter(Product.status != "archived", or_(Product.name.ilike(like), Product.sku.ilike(like)))
+        .order_by(Product.name).limit(6).all()
+    )
+    invoices = (
+        db.query(Invoice).outerjoin(Supplier)
+        .filter(or_(
+            Invoice.invoice_number.ilike(like), Invoice.file_name.ilike(like),
+            Supplier.name.ilike(like), Invoice.supplier_name_raw.ilike(like),
+        ))
+        .order_by(Invoice.created_at.desc()).limit(5).all()
+    )
+    transfers = (
+        db.query(WarehouseTransfer)
+        .filter(or_(WarehouseTransfer.reference.ilike(like), WarehouseTransfer.driver.ilike(like)))
+        .order_by(WarehouseTransfer.created_at.desc()).limit(5).all()
+    )
+    return {
+        "products": [{"id": p.id, "name": p.name, "sku": p.sku, "quantity": p.quantity, "unit": p.unit} for p in products],
+        "invoices": [
+            {
+                "id": i.id, "status": i.status, "invoice_number": i.invoice_number,
+                "supplier": i.supplier.name if i.supplier else i.supplier_name_raw, "file_name": i.file_name,
+            }
+            for i in invoices
+        ],
+        "transfers": [
+            {
+                "id": t.id, "reference": t.reference, "status": t.status,
+                "source": t.source_location.name, "destination": t.destination_location.name,
+            }
+            for t in transfers
+        ],
+    }
+
