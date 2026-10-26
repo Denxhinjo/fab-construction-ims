@@ -40,8 +40,6 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     stock_movements = relationship("StockMovement", foreign_keys="StockMovement.user_id", back_populates="user", lazy="dynamic")
-    work_processes = relationship("WorkProcess", back_populates="assigned_user", foreign_keys="WorkProcess.assigned_user_id", lazy="dynamic")
-    managed_projects = relationship("Project", back_populates="project_manager")
     permitted_locations = relationship(
         "Location", secondary=user_location_permissions, back_populates="permitted_users"
     )

@@ -1,206 +1,234 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Form, Query
-from sqlalchemy.orm import Session
-from typing import Optional
+import csv
+import io
 from datetime import datetime, timezone
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session, joinedload
+
 from ..database import get_db
-from ..models.product import Product
-from ..schemas.product import ProductOut, ProductListOut
 from ..dependencies import get_current_user, require_admin
+from ..models.category import Category
+from ..models.location import Location
+from ..models.product import Product
+from ..models.product_stock import ProductStock
+from ..models.stock_movement import StockMovement
 from ..models.user import User
-from ..services.permissions import permitted_location_ids, scope_query_by_location
-import math
+from ..schemas.product import (
+    AdjustmentIn, ProductOut, ProductSummary, ProductWrite, StockCell, StockLocation, StockOut, StockRow,
+)
+from ..services.inventory_service import _get_or_create_stock, adjust_to_count, generate_reference
+from ..services.permissions import require_location_access
 
 router = APIRouter(prefix="/api/products", tags=["products"])
+stock_router = APIRouter(prefix="/api/stock", tags=["stock"])
 
 
-@router.get("", response_model=ProductListOut)
-def list_products(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=500),
+def _active_locations(db: Session) -> list[Location]:
+    return db.query(Location).filter(Location.is_active == True).order_by(Location.id).all()  # noqa: E712
+
+
+def _stock_rows(
+    db: Session,
+    locations: list[Location],
     search: Optional[str] = None,
     category_id: Optional[int] = None,
     location_id: Optional[int] = None,
-    supplier_id: Optional[int] = None,
-    status: Optional[str] = None,
-    low_stock: Optional[bool] = None,
-    include_archived: bool = False,
+    below_min: bool = False,
+) -> list[StockRow]:
+    query = (
+        db.query(Product)
+        .options(joinedload(Product.location_stocks), joinedload(Product.category), joinedload(Product.supplier))
+        .filter(Product.status != "archived")
+    )
+    if search:
+        like = f"%{search}%"
+        query = query.filter(or_(Product.name.ilike(like), Product.sku.ilike(like)))
+    if category_id:
+        query = query.filter(Product.category_id == category_id)
+
+    rows = []
+    for p in query.order_by(Product.name).all():
+        by_loc = {s.location_id: s for s in p.location_stocks}
+        cells = {}
+        for loc in locations:
+            s = by_loc.get(loc.id)
+            qty = s.quantity if s else 0.0
+            # A material's default minimum applies only where it is kept.
+            minimum = s.effective_min if s else 0.0
+            cells[loc.id] = StockCell(quantity=qty, min=minimum, below_min=minimum > 0 and qty < minimum)
+        if location_id and (location_id not in cells or (cells[location_id].quantity == 0 and not cells[location_id].min)):
+            continue
+        if below_min:
+            scope = [cells[location_id]] if location_id else cells.values()
+            if not any(c.below_min for c in scope):
+                continue
+        rows.append(StockRow(
+            id=p.id, name=p.name, sku=p.sku,
+            category=p.category.name if p.category else None,
+            unit=p.unit, total=sum(c.quantity for c in cells.values()),
+            avg_cost=p.cost or None,
+            last_supplier=p.supplier.name if p.supplier else None,
+            min_stock_level=p.min_stock_level, notes=p.notes, cells=cells,
+        ))
+    return rows
+
+
+# ─── Stock matrix ─────────────────────────────────────────────────────────────
+@stock_router.get("", response_model=StockOut)
+def get_stock(
+    search: Optional[str] = None,
+    category_id: Optional[int] = None,
+    location_id: Optional[int] = None,
+    below_min: bool = False,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    locations = _active_locations(db)
+    rows = _stock_rows(db, locations, search, category_id, location_id, below_min)
+    total = db.query(Product).filter(Product.status != "archived").count()
+    return StockOut(
+        locations=[StockLocation(id=l.id, name=l.name) for l in locations],
+        rows=rows,
+        total_materials=total,
+    )
+
+
+@stock_router.get("/export")
+def export_stock(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    """CSV with a BOM and ';' separators, which Excel opens directly with
+    Albanian characters intact."""
+    locations = _active_locations(db)
+    buf = io.StringIO()
+    writer = csv.writer(buf, delimiter=";")
+    writer.writerow(["Materiali", "SKU", "Kategoria", "Njësia", *[l.name for l in locations],
+                     "Gjithsej", "Çmimi mesatar", "Furnizuesi i fundit"])
+    for row in _stock_rows(db, locations):
+        writer.writerow([
+            row.name, row.sku or "", row.category or "", row.unit,
+            *[f"{row.cells[l.id].quantity:g}" for l in locations],
+            f"{row.total:g}",
+            f"{row.avg_cost:.2f}".replace(".", ",") if row.avg_cost else "",
+            row.last_supplier or "",
+        ])
+    filename = f"stoku-{datetime.now():%Y-%m-%d}.csv"
+    return Response(
+        content="﻿" + buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@stock_router.post("/adjust", status_code=status.HTTP_201_CREATED)
+def adjust_stock(
+    payload: AdjustmentIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    query = db.query(Product)
-    if search:
-        query = query.filter(Product.name.ilike(f"%{search}%"))
-    if category_id:
-        query = query.filter(Product.category_id == category_id)
-    if location_id:
-        query = query.filter(Product.location_id == location_id)
-    if supplier_id:
-        query = query.filter(Product.supplier_id == supplier_id)
-    if status:
-        query = query.filter(Product.status == status)
-    if low_stock:
-        query = query.filter(Product.quantity <= Product.min_stock_level, Product.min_stock_level > 0)
-
-    # Archived (soft-deleted) products are hidden from normal listings --
-    # they still exist for their stock-movement/audit history, but "delete"
-    # should make a product disappear from day-to-day use just like a hard
-    # delete used to, minus destroying that history.
-    if not include_archived:
-        query = query.filter(Product.status != "archived")
-
-    # Non-admins only ever see products in warehouses they've been granted
-    # access to -- an empty permitted set means an empty product list, not
-    # an unfiltered one.
-    query = scope_query_by_location(query, Product, current_user)
-
-    total = query.count()
-    items = query.offset((page - 1) * page_size).limit(page_size).all()
-    return ProductListOut(
-        items=[ProductOut.model_validate(p) for p in items],
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=math.ceil(total / page_size) if total > 0 else 1,
+    """Correct a warehouse's quantity to a physical count."""
+    if current_user.role == "viewer":
+        raise HTTPException(status_code=403, detail="Read-only users cannot change stock")
+    require_location_access(current_user, payload.location_id, "You don't have access to this warehouse")
+    if not db.get(Product, payload.product_id):
+        raise HTTPException(status_code=404, detail="Material not found")
+    reference = generate_reference(db, "KOR", StockMovement, "reference_number", datetime.now(timezone.utc).year)
+    movement = adjust_to_count(
+        db, product_id=payload.product_id, location_id=payload.location_id,
+        counted=payload.counted_quantity, user_id=current_user.id,
+        reference_number=reference, note=payload.note,
     )
+    db.commit()
+    return {"changed": movement is not None, "reference": reference if movement else None}
+
+
+# ─── Materials ────────────────────────────────────────────────────────────────
+@router.get("", response_model=list[ProductSummary])
+def search_products(
+    search: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=500),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Lightweight list for pickers (invoice review, transfers)."""
+    query = db.query(Product).filter(Product.status != "archived")
+    if search:
+        like = f"%{search}%"
+        query = query.filter(or_(Product.name.ilike(like), Product.sku.ilike(like)))
+    return query.order_by(Product.name).limit(limit).all()
+
+
+def _apply(db: Session, product: Product, payload: ProductWrite) -> None:
+    if payload.sku:
+        clash = db.query(Product).filter(func.lower(Product.sku) == payload.sku.lower(), Product.id != product.id).first()
+        if clash:
+            raise HTTPException(status_code=400, detail=f"SKU {payload.sku} is already used by {clash.name}")
+    category_id = None
+    if payload.category_name and payload.category_name.strip():
+        name = payload.category_name.strip()
+        category = db.query(Category).filter(func.lower(Category.name) == name.lower()).first()
+        if category is None:
+            category = Category(name=name)
+            db.add(category)
+            db.flush()
+        category_id = category.id
+    product.name = payload.name
+    product.sku = payload.sku
+    product.category_id = category_id
+    product.unit = payload.unit.strip() or "copë"
+    product.min_stock_level = payload.min_stock_level
+    product.unit_price = payload.unit_price
+    product.notes = payload.notes
+    db.flush()
+    for location_id, minimum in payload.location_mins.items():
+        if not db.get(Location, location_id):
+            raise HTTPException(status_code=400, detail="Warehouse not found")
+        _get_or_create_stock(db, product.id, location_id).min_quantity = minimum
 
 
 @router.post("", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
-def create_product(
-    name: str = Form(...),
-    sku: Optional[str] = Form(None),
-    category_id: Optional[int] = Form(None),
-    description: Optional[str] = Form(None),
-    quantity: float = Form(0),
-    unit: str = Form("pcs"),
-    min_stock_level: float = Form(0),
-    unit_price: Optional[float] = Form(None),
-    location_id: Optional[int] = Form(None),
-    supplier_id: Optional[int] = Form(None),
-    product_status: str = Form("active"),
-    notes: Optional[str] = Form(None),
-    image_url: Optional[str] = Form(None),
-    image_url_2: Optional[str] = Form(None),
-    image_url_3: Optional[str] = Form(None),
-    price_currency: str = Form("ALL"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    if current_user.role != "admin":
-        if location_id is None:
-            raise HTTPException(status_code=400, detail="location_id is required")
-        if location_id not in permitted_location_ids(current_user):
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to add products to this location",
-            )
-
-    product = Product(
-        name=name, sku=sku, category_id=category_id, description=description,
-        quantity=quantity, unit=unit, min_stock_level=min_stock_level,
-        unit_price=unit_price, price_currency=price_currency,
-        location_id=location_id, supplier_id=supplier_id,
-        status=product_status, notes=notes,
-        image_url=image_url, image_url_2=image_url_2, image_url_3=image_url_3,
-    )
+def create_product(payload: ProductWrite, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    product = Product(name=payload.name, quantity=0)
     db.add(product)
+    db.flush()
+    _apply(db, product, payload)
     db.commit()
     db.refresh(product)
-    return ProductOut.model_validate(product)
+    return product
 
 
 @router.get("/{product_id}", response_model=ProductOut)
-def get_product(
-    product_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    product = db.query(Product).filter(Product.id == product_id).first()
+def get_product(product_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    product = db.get(Product, product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    if current_user.role != "admin" and product.location_id not in permitted_location_ids(current_user):
-        raise HTTPException(status_code=403, detail="You don't have access to this product's location")
-    return ProductOut.model_validate(product)
+        raise HTTPException(status_code=404, detail="Material not found")
+    return product
 
 
 @router.put("/{product_id}", response_model=ProductOut)
 def update_product(
-    product_id: int,
-    name: Optional[str] = Form(None),
-    sku: Optional[str] = Form(None),
-    category_id: Optional[int] = Form(None),
-    description: Optional[str] = Form(None),
-    unit: Optional[str] = Form(None),
-    min_stock_level: Optional[float] = Form(None),
-    unit_price: Optional[float] = Form(None),
-    location_id: Optional[int] = Form(None),
-    supplier_id: Optional[int] = Form(None),
-    product_status: Optional[str] = Form(None),
-    notes: Optional[str] = Form(None),
-    image_url: Optional[str] = Form(None),
-    image_url_2: Optional[str] = Form(None),
-    image_url_3: Optional[str] = Form(None),
-    price_currency: Optional[str] = Form(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    product_id: int, payload: ProductWrite, db: Session = Depends(get_db), _: User = Depends(require_admin),
 ):
-    """
-    Quantity is deliberately not editable here -- once a product exists, its
-    quantity only changes through POST /api/stock-movements (Stock In/Out/
-    Adjustment), so every change to it has a ledger entry with a reason, a
-    user, and a date, instead of a silent overwrite.
-    """
-    product = db.query(Product).filter(Product.id == product_id).first()
+    """Quantities are deliberately not editable here: they change only
+    through invoices, transfers and physical-count corrections, so every
+    change has a ledger entry."""
+    product = db.get(Product, product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    if current_user.role != "admin":
-        permitted = permitted_location_ids(current_user)
-        if product.location_id not in permitted:
-            raise HTTPException(status_code=403, detail="You don't have access to this product's location")
-        if location_id is not None and location_id not in permitted:
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to move products to that location",
-            )
-
-    if image_url:
-        product.image_url = image_url
-    if image_url_2 is not None:
-        product.image_url_2 = image_url_2 or None
-    if image_url_3 is not None:
-        product.image_url_3 = image_url_3 or None
-
-    fields = {
-        "name": name, "sku": sku, "category_id": category_id,
-        "description": description, "unit": unit,
-        "min_stock_level": min_stock_level, "unit_price": unit_price,
-        "price_currency": price_currency,
-        "location_id": location_id, "supplier_id": supplier_id,
-        "status": product_status, "notes": notes,
-    }
-    for field, value in fields.items():
-        if value is not None:
-            setattr(product, field, value)
-
+        raise HTTPException(status_code=404, detail="Material not found")
+    _apply(db, product, payload)
     db.commit()
     db.refresh(product)
-    return ProductOut.model_validate(product)
+    return product
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(
-    product_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """
-    Archives the product rather than deleting the row. A hard delete would
-    cascade-destroy its stock-movement history, which an ERP-style audit
-    trail needs to survive a product being retired.
-    """
-    product = db.query(Product).filter(Product.id == product_id).first()
+def archive_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    """Archives rather than deletes, so the material's movement history survives."""
+    product = db.get(Product, product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail="Material not found")
+    if product.quantity > 0:
+        raise HTTPException(status_code=400, detail="Only materials with no stock left can be archived")
     product.status = "archived"
     product.archived_at = datetime.now(timezone.utc)
     product.archived_by_id = current_user.id

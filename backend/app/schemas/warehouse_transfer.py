@@ -5,13 +5,10 @@ from .user import UserSummary
 from .location import LocationSummary
 from .product import ProductSummary
 
-TRANSFER_STATUSES = ["DRAFT", "PENDING", "APPROVED", "DISPATCHED", "IN_TRANSIT", "RECEIVED", "CANCELLED"]
-
 
 class TransferItemCreate(BaseModel):
     product_id: int
     quantity: float
-    notes: Optional[str] = None
 
     @field_validator("quantity")
     @classmethod
@@ -35,6 +32,7 @@ class TransferItemOut(BaseModel):
 class WarehouseTransferCreate(BaseModel):
     source_location_id: int
     destination_location_id: int
+    driver: Optional[str] = None
     notes: Optional[str] = None
     items: list[TransferItemCreate]
 
@@ -46,22 +44,12 @@ class WarehouseTransferCreate(BaseModel):
 
     @field_validator("items")
     @classmethod
-    def items_not_empty(cls, v):
+    def items_valid(cls, v):
         if not v:
             raise ValueError("Transfer must have at least one item")
-        return v
-
-
-class WarehouseTransferUpdate(BaseModel):
-    status: Optional[str] = None
-    notes: Optional[str] = None
-    items: Optional[list[TransferItemCreate]] = None
-
-    @field_validator("status")
-    @classmethod
-    def validate_status(cls, v):
-        if v is not None and v not in TRANSFER_STATUSES:
-            raise ValueError(f"Status must be one of: {', '.join(TRANSFER_STATUSES)}")
+        ids = [i.product_id for i in v]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Each material can appear only once in a transfer")
         return v
 
 
@@ -72,11 +60,8 @@ class WarehouseTransferOut(BaseModel):
     destination_location_id: int
     status: str
     notes: Optional[str] = None
+    driver: Optional[str] = None
     requested_by_id: int
-    approved_by_id: Optional[int] = None
-    dispatched_by_id: Optional[int] = None
-    received_by_id: Optional[int] = None
-    approved_at: Optional[datetime] = None
     dispatched_at: Optional[datetime] = None
     received_at: Optional[datetime] = None
     created_at: datetime
@@ -84,7 +69,7 @@ class WarehouseTransferOut(BaseModel):
     source_location: Optional[LocationSummary] = None
     destination_location: Optional[LocationSummary] = None
     requested_by: Optional[UserSummary] = None
-    approved_by: Optional[UserSummary] = None
+    received_by: Optional[UserSummary] = None
     items: list[TransferItemOut] = []
 
     model_config = {"from_attributes": True}
@@ -104,12 +89,15 @@ class ReceiveItemIn(BaseModel):
 
     @field_validator("received_quantity")
     @classmethod
-    def qty_positive(cls, v: float) -> float:
+    def qty_not_negative(cls, v: float) -> float:
         if v < 0:
             raise ValueError("Received quantity cannot be negative")
         return v
 
 
 class ReceiveTransferIn(BaseModel):
-    items: list[ReceiveItemIn]
+    """Omit `items` when everything arrived. Otherwise list what actually
+    arrived per item; any shortfall closes the transfer as received with
+    differences."""
+    items: Optional[list[ReceiveItemIn]] = None
     notes: Optional[str] = None

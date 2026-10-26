@@ -5,13 +5,14 @@ import { useTranslation } from 'react-i18next'
 import { HardHat, Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import Spinner from '../components/ui/Spinner'
+import { LanguageToggle } from '../components/layout/Header'
 
 interface LoginForm { username: string; password: string }
 
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<LoginForm>()
@@ -27,34 +28,24 @@ export default function Login() {
     }
   }
 
-  const toggleLang = () => {
-    const next = i18n.language === 'sq' ? 'en' : 'sq'
-    i18n.changeLanguage(next)
-    localStorage.setItem('lang', next)
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-ink-950 flex items-center justify-center p-4">
       <div className="absolute inset-0 opacity-5">
         <div className="absolute inset-0" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
       </div>
 
-      {/* Language toggle */}
-      <button
-        onClick={toggleLang}
-        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white text-sm font-semibold hover:bg-white/20 transition-colors"
-      >
-        {i18n.language === 'sq' ? 'EN' : 'SQ'}
-      </button>
+      <div className="absolute top-5 right-5">
+        <LanguageToggle dark />
+      </div>
 
       <div className="relative w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-8 py-10 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4">
-              <HardHat className="w-9 h-9 text-white" />
+          <div className="bg-ink-900 px-8 py-10 text-center">
+            <div className="w-14 h-14 rounded-xl bg-brand-500 flex items-center justify-center mx-auto mb-4">
+              <HardHat className="w-8 h-8 text-ink-950" />
             </div>
-            <h1 className="text-2xl font-bold text-white">{t('app.name')}</h1>
-            <p className="text-brand-100 text-sm mt-1">{t('app.ims')}</p>
+            <h1 className="text-2xl font-semibold text-white">{t('app.name')}</h1>
+            <p className="text-ink-500 text-sm mt-1">{t('app.ims')}</p>
           </div>
 
           <div className="px-8 py-8">

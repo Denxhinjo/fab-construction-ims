@@ -3,7 +3,17 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
 
-TRANSFER_STATUSES = ["DRAFT", "PENDING", "APPROVED", "DISPATCHED", "IN_TRANSIT", "RECEIVED", "CANCELLED"]
+# A transfer is created already dispatched: stock leaves the source warehouse
+# the moment it is sent, and enters the destination when it is received.
+# RECEIVED_PARTIAL closes a transfer whose delivery came up short; the
+# missing quantity is recorded on the items and never enters stock.
+# DRAFT/PENDING/APPROVED/DISPATCHED/CANCELLED are kept only so rows from the
+# previous approval workflow still load.
+TRANSFER_STATUSES = [
+    "IN_TRANSIT", "RECEIVED", "RECEIVED_PARTIAL",
+    "DRAFT", "PENDING", "APPROVED", "DISPATCHED", "CANCELLED",
+]
+OPEN_TRANSFER_STATUSES = ("DISPATCHED", "IN_TRANSIT")
 
 
 class WarehouseTransfer(Base):
@@ -13,8 +23,9 @@ class WarehouseTransfer(Base):
     reference = Column(String(50), unique=True, nullable=False, index=True)
     source_location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
     destination_location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
-    status = Column(String(30), default="DRAFT", nullable=False)
+    status = Column(String(30), default="IN_TRANSIT", nullable=False)
     notes = Column(Text, nullable=True)
+    driver = Column(String(255), nullable=True)
     requested_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     dispatched_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
