@@ -260,3 +260,20 @@ def test_list_counts_by_status(client, admin_headers, two_locations):
     assert body["counts"] == {"review": 2, "all": 2}
     assert body["items"][0]["supplier_name"] == "Metal-Kos"
     assert body["items"][0]["line_count"] == 3
+
+
+def test_euro_invoice_costs_are_converted_to_lek(client, admin_headers, two_locations, supplier, rebar):
+    loc_a, _ = two_locations
+    lines = invoice_lines()[:-1] + ["Kursi: EUR = 100.00", "TOTALI EUR 1,704.00 340.80 2,044.80"]
+    inv = upload(client, admin_headers, make_pdf(lines), loc_a.id).json()
+    assert (inv["currency"], inv["exchange_rate"]) == ("EUR", 100.0)
+
+    # Without a rate the invoice can't be booked: its costs couldn't be valued in lek.
+    res = client.post(f"/api/invoices/{inv['id']}/accept", headers=admin_headers,
+                      json=accept_payload(inv, exchange_rate=None))
+    assert res.status_code == 400 and "exchange rate" in res.json()["detail"]
+
+    res = client.post(f"/api/invoices/{inv['id']}/accept", headers=admin_headers, json=accept_payload(inv))
+    assert res.status_code == 200, res.text
+    row = next(r for r in client.get("/api/stock", headers=admin_headers).json()["rows"] if r["id"] == rebar.id)
+    assert row["avg_cost"] == pytest.approx(1490.0)  # 14.90 EUR x 100

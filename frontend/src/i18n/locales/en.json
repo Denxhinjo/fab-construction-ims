@@ -38,7 +38,9 @@
     "deleted": "Deleted successfully",
     "all": "All",
     "actions": "Actions",
-    "close": "Close"
+    "close": "Close",
+    "loadError": "Couldn't load this page. The server returned an error.",
+    "retry": "Try again"
   },
   "locations": {
     "title": "Warehouses",
@@ -418,7 +420,10 @@
     "duplicateText": "Invoice {{number}} from this supplier has already been entered into stock. Book it again?",
     "bookAnyway": "Book again",
     "rejectTitle": "Reject this invoice?",
-    "rejectText": "Nothing will be added to stock. The file stays in the list as rejected."
+    "rejectText": "Nothing will be added to stock. The file stays in the list as rejected.",
+    "currency": "Currency",
+    "rate": "{{currency}} to lek exchange rate",
+    "needRate": "Enter the {{currency}} to lek exchange rate to continue"
   },
   "issues": {
     "arithmetic_mismatch": "Quantity × price doesn't equal the row value on the invoice.",
@@ -433,7 +438,8 @@
     "no_date": "Date not found.",
     "no_supplier": "Supplier not found.",
     "totals_computed": "Totals weren't found; they were added up from the rows.",
-    "totals_mismatch": "The rows don't add up to the invoice total."
+    "totals_mismatch": "The rows don't add up to the invoice total.",
+    "no_exchange_rate": "This invoice isn't in lek and its exchange rate wasn't found. Enter it next to the currency."
   },
   "transfers": {
     "title": "Transfers",

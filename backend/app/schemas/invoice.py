@@ -83,6 +83,7 @@ class InvoiceOut(BaseModel):
     invoice_number: Optional[str] = None
     invoice_date: Optional[date] = None
     currency: str
+    exchange_rate: Optional[float] = None
     subtotal: Optional[float] = None
     vat_total: Optional[float] = None
     total: Optional[float] = None
@@ -135,6 +136,8 @@ class InvoiceUpdate(BaseModel):
     new_supplier: Optional[NewSupplierIn] = None
     invoice_number: Optional[str] = None
     invoice_date: Optional[date] = None
+    currency: Optional[str] = None
+    exchange_rate: Optional[float] = None
     location_id: Optional[int] = None
     # When given, replaces the invoice's rows: rows not listed are removed.
     lines: Optional[list[InvoiceLineIn]] = None

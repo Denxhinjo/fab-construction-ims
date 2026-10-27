@@ -7,6 +7,7 @@ import { AlertTriangle, Check, ChevronLeft, ChevronRight, FileText, Minus, Plus,
 import { invoicesApi, locationsApi, suppliersApi } from '../../services/api'
 import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
+import LoadError from '../../components/ui/LoadError'
 import Modal from '../../components/ui/Modal'
 import MaterialPicker from '../../components/ui/MaterialPicker'
 import { useAuth } from '../../context/AuthContext'
@@ -64,6 +65,8 @@ function toRow(l: InvoiceLine): Row {
   }
 }
 
+const CURRENCIES = ['ALL', 'EUR', 'USD']
+
 function numberOrNull(v: string): number | null {
   if (v.trim() === '') return null
   const n = Number(v.replace(',', '.'))
@@ -120,7 +123,7 @@ export default function InvoiceReview() {
   const qc = useQueryClient()
   const { user } = useAuth()
 
-  const { data: invoice, isLoading } = useQuery<Invoice>({
+  const { data: invoice, isLoading, isError, refetch } = useQuery<Invoice>({
     queryKey: ['invoice', invoiceId],
     queryFn: () => invoicesApi.get(invoiceId).then((r) => r.data),
   })
@@ -136,6 +139,7 @@ export default function InvoiceReview() {
   const [rows, setRows] = useState<Row[]>([])
   const [header, setHeader] = useState({
     supplier: '' as string, newName: '', newTax: '', number: '', date: '', location: '' as string,
+    currency: 'ALL', rate: '',
   })
   const [duplicateAsk, setDuplicateAsk] = useState(false)
   const [rejectAsk, setRejectAsk] = useState(false)
@@ -150,6 +154,8 @@ export default function InvoiceReview() {
       number: invoice.invoice_number ?? '',
       date: invoice.invoice_date ?? '',
       location: invoice.location_id ? String(invoice.location_id) : '',
+      currency: invoice.currency,
+      rate: invoice.exchange_rate != null ? String(invoice.exchange_rate) : '',
     })
   }, [invoice])
 
@@ -171,6 +177,9 @@ export default function InvoiceReview() {
   const firstUnchecked = stockRows.find((r) => r.needsCheck && !r.checked)
   const missingName = stockRows.find((r) => !r.product && !r.new_name.trim())
   const missingQty = stockRows.find((r) => !r.quantity || r.quantity <= 0)
+  // Stock is valued in lek; other currencies need the rate to convert costs.
+  const foreign = header.currency !== 'ALL'
+  const rateValue = numberOrNull(header.rate)
 
   const payload = (): InvoiceUpdate => ({
     ...(header.supplier === 'new'
@@ -178,6 +187,8 @@ export default function InvoiceReview() {
       : { supplier_id: header.supplier ? Number(header.supplier) : null }),
     invoice_number: header.number || null,
     invoice_date: header.date || null,
+    currency: header.currency,
+    exchange_rate: foreign ? numberOrNull(header.rate) : null,
     location_id: header.location ? Number(header.location) : null,
     lines: rows.map((r) => ({
       id: r.id,
@@ -223,6 +234,7 @@ export default function InvoiceReview() {
     onSuccess: () => { setRejectAsk(false); toast.success(t('review.rejected')); done(nextInQueue()) },
   })
 
+  if (isError) return <LoadError onRetry={() => refetch()} />
   if (isLoading || !invoice) {
     return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
   }
@@ -234,6 +246,7 @@ export default function InvoiceReview() {
   const pos = queue.indexOf(invoiceId)
   const blocker = !header.location ? t('review.needDepot')
     : !(header.supplier === 'new' ? header.newName.trim() : header.supplier) ? t('review.needSupplier')
+    : foreign && !(rateValue && rateValue > 0) ? t('review.needRate', { currency: header.currency })
     : !stockRows.length ? t('review.needRows')
     : missingQty ? t('review.needQty', { n: missingQty.line_no })
     : missingName ? t('review.needName', { n: missingName.line_no })
@@ -332,16 +345,41 @@ export default function InvoiceReview() {
                 </p>
               )}
             </div>
-            <div className="sm:col-span-3 border-t border-line pt-4">
-              <p className="eyebrow">{t('review.receiveIn')}</p>
-              {editable ? (
-                <select className="input-base mt-1.5 sm:w-64 font-medium" value={header.location} onChange={(e) => setHeader({ ...header, location: e.target.value })}>
-                  <option value="">{t('review.pickDepot')}</option>
-                  {locations.filter((l) => l.is_active).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              ) : (
-                <p className="font-semibold mt-1">{invoice.location?.name ?? '—'}</p>
-              )}
+            <div className="sm:col-span-3 border-t border-line pt-4 flex flex-wrap gap-x-6 gap-y-4">
+              <div>
+                <p className="eyebrow">{t('review.receiveIn')}</p>
+                {editable ? (
+                  <select className="input-base mt-1.5 sm:w-64 font-medium" value={header.location} onChange={(e) => setHeader({ ...header, location: e.target.value })}>
+                    <option value="">{t('review.pickDepot')}</option>
+                    {locations.filter((l) => l.is_active).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                ) : (
+                  <p className="font-semibold mt-1">{invoice.location?.name ?? '—'}</p>
+                )}
+              </div>
+              <div>
+                <p className="eyebrow">{t('review.currency')}</p>
+                {editable ? (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <select className="input-base !w-24 font-medium" value={header.currency} onChange={(e) => setHeader({ ...header, currency: e.target.value })}>
+                      {[...new Set([...CURRENCIES, header.currency])].map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    {foreign && (
+                      <label className="flex items-center gap-2 text-sm text-slate-600 whitespace-nowrap">
+                        1 {header.currency} =
+                        <input className={`input-base !w-28 text-right font-mono ${rateValue ? '' : '!border-amber-400'}`} inputMode="decimal" value={header.rate}
+                          aria-label={t('review.rate', { currency: header.currency })} onChange={(e) => setHeader({ ...header, rate: e.target.value })} />
+                        lek
+                      </label>
+                    )}
+                  </div>
+                ) : (
+                  <p className="font-semibold mt-1">
+                    {invoice.currency}
+                    {invoice.exchange_rate != null && <span className="font-normal text-sm text-slate-500"> · 1 {invoice.currency} = {fmtNum(invoice.exchange_rate)} lek</span>}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -422,7 +460,7 @@ export default function InvoiceReview() {
                         <>
                           <span className="text-right font-mono text-sm">{fmtNum(r.quantity)}</span>
                           <span className="text-sm text-slate-600">{r.unit || '—'}</span>
-                          <span className="text-right font-mono text-sm">{fmtMoney(r.unit_price, invoice.currency, 2)}</span>
+                          <span className="text-right font-mono text-sm">{fmtMoney(r.unit_price, invoice.currency, r.unit_price != null && Math.abs(r.unit_price) < 1 ? 4 : 2)}</span>
                         </>
                       )}
                       <span className="text-right font-mono text-sm font-semibold pt-2">{fmtMoney(value, invoice.currency, 2)}</span>

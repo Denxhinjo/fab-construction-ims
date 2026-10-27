@@ -1,0 +1,393 @@
+Faturë Elektronike
+PLATFORMA QENDRORE E FATURAVE
+Shitës
+Emri: Elektro Drita sh.p.k
+Emri tregtar: Elektro Drita sh.p.k
+NIPT: M01234567E
+Adresa: Rruga e Kavajës, Km 3
+Qyteti dhe Kodi postar: Tirana
+Shteti: Albania
+Adresa elektronike: M01234567E
+INFORMACIONE TË FATURËS
+Kodi / Emri i llojit të faturës: 380 / Faturë tregtare
+Specifikimi i standardit: urn:cen.eu:en16931:2017
+Lloji i Procesit: P1 Faturimi i dërgesave të mallrave dhe shërbimeve kundrejt porosive të blerjes,
+Faturë borxh i keq: false
+TË DHËNAT E FATURËS
+Numri i faturës: 6196/2025
+Data dhe ora e lëshimit të faturës: 11.11.2025 12:10:11
+Monedha e faturës: EUR
+Monedha e llogaritjes së TVSH-së: 96,650000
+Data e fillimit të periudhës së faturimit: 11.11.2025
+Data e mbarimit të periudhës së faturimit: 11.11.2025
+Kodi i vendit të ushtrimit të SN-000000-01-01 (aa000aa000), Rruga e Durrësit, Tirana,
+veprimtarisë së biznesit: Albania
+Kodi i operatorit: Arta Hoxha (ab123cd456)
+NIVF: 00000000-0000-4000-8000-000000000000
+NSLF: 0123456789ABCDEF0123456789ABCDEF
+BLERËSI / KLIENTI
+Emri: FAB CONSTRUCTION SH.P.K.
+Emri tregtar: FAB CONSTRUCTION SH.P.K.
+NIPT: L00000000A
+Adresa: TIRANE
+Shteti: Albania
+Adresa elektronike: L00000000A
+REFERENCA
+Lloji i referencës Përshkrimi
+Urdhri i blerjes: V00001
+Për të gjitha informacionet dhe ndihmë kontaktoni: Për të gjitha informacionet dhe ndihmë kontaktoni:
+Drejtoria e Përgjithshme e Tatimeve Agjencia Kombëtare e Shoqërisë së Informacionit
+Numri i Telefonit: 0800 14 14 Numri i Telefonit: +355 422 77750
+E-Mail:einvoice_support@tatime.gov.al E-Mail: einvoice_support@akshi.gov.al
+Adresa: Rruga Gjin Bue Shpata, Tirana 1000, Albania Adresa: Rr. Papa Gjon Pali i II, Nr 3, Tirana1003,
+Faturë Elektronike
+PLATFORMA QENDRORE E FATURAVE
+ARTIKUJT E FATURËS
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+KABELL FLEX 5X4 ME VESHJE GOME FRO-HP SIGN 2,11 0,00 S-VAT
+1 ml 0,00
+20
+200.00 505,30 421,08
+AUTOMAT I AKSESORUESHEM 2P C32A 6KA 5,51 0,00 S-VAT
+2 Copë 0,00
+20
+6.00 39,66 33,05
+AUTOMAT I AKSESORUESHEM 4P C32A 6KA 11,68 0,00 S-VAT
+3 Copë 0,00
+20
+4.00 56,04 46,70
+DS201 L H C40 AC30 14,37 0,00 S-VAT
+4 Copë 0,00
+20
+20.00 344,80 287,33
+PRIZE SHUKO 1,47 0,00 S-VAT
+5 Copë 0,00
+20
+40.00 70,32 58,60
+CONTENITORE IP40 4P 1,24 0,00 S-VAT
+6 Copë 0,00
+20
+20.00 29,86 24,88
+FASHETE 430X4,8 NEUTRA 0,03 0,00 S-VAT
+7 Copë 0,00
+20
+400.00 16,32 13,60
+FASHETE NY NATUR 250X4.8 0,02 0,00 S-VAT
+8 Copë 0,00
+20
+400.00 9,60 8,00
+FASHETE 200X3,6 NEUTRA 0,01 0,00 S-VAT
+9 Copë 0,00
+20
+200.00 2,08 1,73
+PUNTOLINA TE IZOLUARA 1.5MM2 L=8MM 0,01 0,00 S-VAT
+10 Copë 0,00
+20
+1000.00 7,20 6,00
+PUNTOLINA TE IZOLUARA 2.5MM2 L=8MM 0,01 0,00 S-VAT
+11 Copë 0,00
+20
+500.00 4,34 3,62
+PUNTOLINA TE IZOLUARA 4MM2 L=10MM 0,01 0,00 S-VAT
+12 Copë 0,00
+20
+400.00 6,55 5,46
+PUNTOLINA TE IZOLUARA 6MM2 L=12MM 0,02 0,00 S-VAT
+13 Copë 0,00
+20
+200.00 4,08 3,40
+PUNTOLINA TE IZOLUARA 10MM2 L=12MM 0,02 0,00 S-VAT
+14 Copë 0,00
+20
+100.00 2,87 2,39
+PUNTOLINA TE IZOLUARA 16MM2 L=12MM 0,03 0,00 S-VAT
+15 Copë 0,00
+20
+100.00 3,48 2,90
+PUNTOLINA TE IZOLUARA 2X2.5MM2 L=10MM 0,02 0,00 S-VAT
+16 Copë 0,00
+20
+500.00 10,85 9,04
+PUNTOLINA TE IZOLUARA 2X4MM2 L=12MM 0,04 0,00 S-VAT
+17 Copë 0,00
+20
+400.00 17,20 14,33
+PUNTOLINA TE IZOLUARA 2X6MM2 L=14MM 0,04 0,00 S-VAT
+18 Copë 0,00
+20
+250.00 13,25 11,04
+Për të gjitha informacionet dhe ndihmë kontaktoni: Për të gjitha informacionet dhe ndihmë kontaktoni:
+Drejtoria e Përgjithshme e Tatimeve Agjencia Kombëtare e Shoqërisë së Informacionit
+Numri i Telefonit: 0800 14 14 Numri i Telefonit: +355 422 77750
+E-Mail:einvoice_support@tatime.gov.al E-Mail: einvoice_support@akshi.gov.al
+Adresa: Rruga Gjin Bue Shpata, Tirana 1000, Albania Adresa: Rr. Papa Gjon Pali i II, Nr 3, Tirana1003,
+Faturë Elektronike
+PLATFORMA QENDRORE E FATURAVE
+SHPËRNDARJA E TVSH-SË
+Kodi i TVSH-së Shkalla e TVSH-së Vlera e tatueshme Shuma e TVSH-së
+S-VAT 20 953,15 190,68
+TOTAL NË EUR
+Shumat totale neto të artikujve: 953,15 EUR
+Totali i uljeve të faturës: 0,00 EUR
+Shuma totale pa TVSH: 953,15 EUR
+Shuma totale e TVSH-së: 190,68 EUR
+Shuma totale me TVSH: 1 143,83 EUR
+Shuma e paguar: 0,00 EUR
+Shuma e rrumbullakimit: 0,00 EUR
+Shuma totale e mbetur për t’u paguar: 1 143,83 EUR
+TOTAL NË LEK
+Shuma totale e TVSH-së: 18 429,22 LEK
+SHËNIME
+CurrencyCode=EUR
+Për të gjitha informacionet dhe ndihmë kontaktoni: Për të gjitha informacionet dhe ndihmë kontaktoni:
+Drejtoria e Përgjithshme e Tatimeve Agjencia Kombëtare e Shoqërisë së Informacionit
+Numri i Telefonit: 0800 14 14 Numri i Telefonit: +355 422 77750
+E-Mail:einvoice_support@tatime.gov.al E-Mail: einvoice_support@akshi.gov.al
+Adresa: Rruga Gjin Bue Shpata, Tirana 1000, Albania Adresa: Rr. Papa Gjon Pali i II, Nr 3, Tirana1003,
+Faturë Elektronike
+PLATFORMA QENDRORE E FATURAVE
+Të gjitha informacionet e nevojshme Të gjitha informacionet në lidhje me
+për pagesën e kësaj fature mund të këtë faturë mund të shihen në këtë
+gjenden në këtë kod QR Kod QR
+Për të gjitha informacionet dhe ndihmë kontaktoni: Për të gjitha informacionet dhe ndihmë kontaktoni:
+Drejtoria e Përgjithshme e Tatimeve Agjencia Kombëtare e Shoqërisë së Informacionit
+Numri i Telefonit: 0800 14 14 Numri i Telefonit: +355 422 77750
+E-Mail:einvoice_support@tatime.gov.al E-Mail: einvoice_support@akshi.gov.al
+Adresa: Rruga Gjin Bue Shpata, Tirana 1000, Albania Adresa: Rr. Papa Gjon Pali i II, Nr 3, Tirana1003,
+Faturë Elektronike
+PLATFORMA QENDRORE E FATURAVE
+Specifikimi i hollësishëm i artikullit të faturës
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+KABELL FLEX 5X4 ME VESHJE GOME FRO-HP SIGN 2,11 0,00 S-VAT
+1 ml 0,00
+20
+200.00 505,30 421,08
+Shuma bazë: 2.11
+Sasia: 1
+Njësia e Matjes: ml
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+AUTOMAT I AKSESORUESHEM 2P C32A 6KA 5,51 0,00 S-VAT
+2 Copë 0,00
+20
+6.00 39,66 33,05
+Shuma bazë: 5.51
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+AUTOMAT I AKSESORUESHEM 4P C32A 6KA 11,68 0,00 S-VAT
+3 Copë 0,00
+20
+4.00 56,04 46,70
+Shuma bazë: 11.68
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+DS201 L H C40 AC30 14,37 0,00 S-VAT
+4 Copë 0,00
+20
+20.00 344,80 287,33
+Shuma bazë: 14.37
+Sasia: 1
+Njësia e Matjes: Copë
+Për të gjitha informacionet dhe ndihmë kontaktoni: Për të gjitha informacionet dhe ndihmë kontaktoni:
+Drejtoria e Përgjithshme e Tatimeve Agjencia Kombëtare e Shoqërisë së Informacionit
+Numri i Telefonit: 0800 14 14 Numri i Telefonit: +355 422 77750
+E-Mail:einvoice_support@tatime.gov.al E-Mail: einvoice_support@akshi.gov.al
+Adresa: Rruga Gjin Bue Shpata, Tirana 1000, Albania Adresa: Rr. Papa Gjon Pali i II, Nr 3, Tirana1003,
+Faturë Elektronike
+PLATFORMA QENDRORE E FATURAVE
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PRIZE SHUKO 1,47 0,00 S-VAT
+5 Copë 0,00
+20
+40.00 70,32 58,60
+Shuma bazë: 1.47
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+CONTENITORE IP40 4P 1,24 0,00 S-VAT
+6 Copë 0,00
+20
+20.00 29,86 24,88
+Shuma bazë: 1.24
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+FASHETE 430X4,8 NEUTRA 0,03 0,00 S-VAT
+7 Copë 0,00
+20
+400.00 16,32 13,60
+Shuma bazë: 0.03
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+FASHETE NY NATUR 250X4.8 0,02 0,00 S-VAT
+8 Copë 0,00
+20
+400.00 9,60 8,00
+Shuma bazë: 0.02
+Sasia: 1
+Njësia e Matjes: Copë
+Për të gjitha informacionet dhe ndihmë kontaktoni: Për të gjitha informacionet dhe ndihmë kontaktoni:
+Drejtoria e Përgjithshme e Tatimeve Agjencia Kombëtare e Shoqërisë së Informacionit
+Numri i Telefonit: 0800 14 14 Numri i Telefonit: +355 422 77750
+E-Mail:einvoice_support@tatime.gov.al E-Mail: einvoice_support@akshi.gov.al
+Adresa: Rruga Gjin Bue Shpata, Tirana 1000, Albania Adresa: Rr. Papa Gjon Pali i II, Nr 3, Tirana1003,
+Faturë Elektronike
+PLATFORMA QENDRORE E FATURAVE
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+FASHETE 200X3,6 NEUTRA 0,01 0,00 S-VAT
+9 Copë 0,00
+20
+200.00 2,08 1,73
+Shuma bazë: 0.01
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PUNTOLINA TE IZOLUARA 1.5MM2 L=8MM 0,01 0,00 S-VAT
+10 Copë 0,00
+20
+1000.00 7,20 6,00
+Shuma bazë: 0.01
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PUNTOLINA TE IZOLUARA 2.5MM2 L=8MM 0,01 0,00 S-VAT
+11 Copë 0,00
+20
+500.00 4,34 3,62
+Shuma bazë: 0.01
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PUNTOLINA TE IZOLUARA 4MM2 L=10MM 0,01 0,00 S-VAT
+12 Copë 0,00
+20
+400.00 6,55 5,46
+Shuma bazë: 0.01
+Sasia: 1
+Njësia e Matjes: Copë
+Për të gjitha informacionet dhe ndihmë kontaktoni: Për të gjitha informacionet dhe ndihmë kontaktoni:
+Drejtoria e Përgjithshme e Tatimeve Agjencia Kombëtare e Shoqërisë së Informacionit
+Numri i Telefonit: 0800 14 14 Numri i Telefonit: +355 422 77750
+E-Mail:einvoice_support@tatime.gov.al E-Mail: einvoice_support@akshi.gov.al
+Adresa: Rruga Gjin Bue Shpata, Tirana 1000, Albania Adresa: Rr. Papa Gjon Pali i II, Nr 3, Tirana1003,
+Faturë Elektronike
+PLATFORMA QENDRORE E FATURAVE
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PUNTOLINA TE IZOLUARA 6MM2 L=12MM 0,02 0,00 S-VAT
+13 Copë 0,00
+20
+200.00 4,08 3,40
+Shuma bazë: 0.02
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PUNTOLINA TE IZOLUARA 10MM2 L=12MM 0,02 0,00 S-VAT
+14 Copë 0,00
+20
+100.00 2,87 2,39
+Shuma bazë: 0.02
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PUNTOLINA TE IZOLUARA 16MM2 L=12MM 0,03 0,00 S-VAT
+15 Copë 0,00
+20
+100.00 3,48 2,90
+Shuma bazë: 0.03
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PUNTOLINA TE IZOLUARA 2X2.5MM2 L=10MM 0,02 0,00 S-VAT
+16 Copë 0,00
+20
+500.00 10,85 9,04
+Shuma bazë: 0.02
+Sasia: 1
+Njësia e Matjes: Copë
+Për të gjitha informacionet dhe ndihmë kontaktoni: Për të gjitha informacionet dhe ndihmë kontaktoni:
+Drejtoria e Përgjithshme e Tatimeve Agjencia Kombëtare e Shoqërisë së Informacionit
+Numri i Telefonit: 0800 14 14 Numri i Telefonit: +355 422 77750
+E-Mail:einvoice_support@tatime.gov.al E-Mail: einvoice_support@akshi.gov.al
+Adresa: Rruga Gjin Bue Shpata, Tirana 1000, Albania Adresa: Rr. Papa Gjon Pali i II, Nr 3, Tirana1003,
+Faturë Elektronike
+PLATFORMA QENDRORE E FATURAVE
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PUNTOLINA TE IZOLUARA 2X4MM2 L=12MM 0,04 0,00 S-VAT
+17 Copë 0,00
+20
+400.00 17,20 14,33
+Shuma bazë: 0.04
+Sasia: 1
+Njësia e Matjes: Copë
+Përshkrimi i Mallit ose Shërbimit Çmimi bruto për njësi Vlera e zbritjes Kodi i TVSH
+Nr. Njësia e Matjes Ulja e çmimit Vlera e shtesës
+Shkalla e TVSH
+Sasia Çmimi bruto për njësi Vlera neto pa TVSH
+PUNTOLINA TE IZOLUARA 2X6MM2 L=14MM 0,04 0,00 S-VAT
+18 Copë 0,00
+20
+250.00 13,25 11,04
+Shuma bazë: 0.04
+Sasia: 1
+Njësia e Matjes: Copë
+Për të gjitha informacionet dhe ndihmë kontaktoni: Për të gjitha informacionet dhe ndihmë kontaktoni:
+Drejtoria e Përgjithshme e Tatimeve Agjencia Kombëtare e Shoqërisë së Informacionit
+Numri i Telefonit: 0800 14 14 Numri i Telefonit: +355 422 77750
+E-Mail:einvoice_support@tatime.gov.al E-Mail: einvoice_support@akshi.gov.al
+Adresa: Rruga Gjin Bue Shpata, Tirana 1000, Albania Adresa: Rr. Papa Gjon Pali i II, Nr 3, Tirana1003,
