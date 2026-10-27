@@ -48,3 +48,6 @@ htmlcov/
 
 # Dev logs
 frontend/vite-preview.log
+
+# Real supplier invoices used for testing the reader; fixtures in backend/tests are anonymised
+samples/

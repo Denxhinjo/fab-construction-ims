@@ -267,6 +267,7 @@ export interface Invoice {
   invoice_number?: string | null
   invoice_date?: string | null
   currency: string
+  exchange_rate?: number | null
   subtotal?: number | null
   vat_total?: number | null
   total?: number | null
@@ -317,6 +318,8 @@ export interface InvoiceUpdate {
   new_supplier?: { name: string; tax_number?: string | null } | null
   invoice_number?: string | null
   invoice_date?: string | null
+  currency?: string
+  exchange_rate?: number | null
   location_id?: number | null
   lines?: InvoiceLineInput[]
   allow_duplicate?: boolean
