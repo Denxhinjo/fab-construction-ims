@@ -41,6 +41,7 @@ INV_NO_DATE = "no_date"
 INV_NO_SUPPLIER = "no_supplier"
 INV_TOTALS_COMPUTED = "totals_computed"    # totals not found; summed from the rows
 INV_TOTALS_MISMATCH = "totals_mismatch"    # rows don't add up to the printed totals
+INV_NO_RATE = "no_exchange_rate"           # foreign currency, rate to lek not found
 
 ROW_BLOCKING = {ROW_ARITHMETIC, ROW_PRICE_DERIVED, ROW_MISSING_NUMBERS, ROW_UNIT_UNKNOWN}
 
@@ -62,6 +63,9 @@ UNITS = {
     "shufer": "shufër", "shufra": "shufër", "bar": "shufër",
     "pllake": "pllakë", "pllaka": "pllakë", "sheet": "pllakë",
     "pal": "paletë", "palete": "paletë", "pallet": "paletë",
+    # UN/ECE codes the e-invoice platform may print instead of a name
+    "h87": "copë", "c62": "copë", "xpp": "copë", "mtr": "m", "mtk": "m²", "mtq": "m³",
+    "kgm": "kg", "grm": "g", "tne": "ton", "ltr": "l", "pr": "palë",
 }
 
 # Descriptions that are costs on the invoice but not stock.
@@ -110,6 +114,7 @@ class ParsedInvoice:
     supplier_name: Optional[str] = None
     supplier_tax_number: Optional[str] = None
     currency: str = "ALL"
+    exchange_rate: Optional[float] = None  # lek per unit of currency; None for ALL
     subtotal: Optional[float] = None
     vat_total: Optional[float] = None
     total: Optional[float] = None
@@ -465,6 +470,14 @@ def parse_supplier(lines: list[str]) -> tuple[Optional[str], Optional[str]]:
         # Address text bleeding in from the next column: "... light 1,28, fq. 14"
         rest = re.split(r"\s+(?:\S*\d\S*|fq\.?)(?:\s|$)", rest, maxsplit=1)[0]
         name = rest.strip(" ,;:") or None
+        if name is None:
+            # The label is a section heading ("Shitës") with the name on an
+            # "Emri:" / "Name:" line under it, as on e-invoices.
+            for below in lines[seller_i + 1:seller_i + 4]:
+                m = re.match(r"(?:emri|name)\s*:\s*(.+)", below, re.IGNORECASE)
+                if m:
+                    name = m.group(1).strip()
+                    break
 
     # The seller's tax number is the first one inside the seller block.
     tax = None
@@ -507,10 +520,145 @@ def parse_totals(lines: list[str], rows: list[ParsedLine]) -> tuple[Optional[flo
 
 def parse_currency(text: str) -> str:
     f = fold(text)
+    # A labelled currency wins over any amount printed in another one
+    # (e-invoices add a "TOTAL NË LEK" block under a EUR invoice; fiscal
+    # invoices print "Kursi: EUR = 97.50" above both a EUR and a LEK total).
+    labelled = re.search(r"(?:monedha\s+e\s+fatur\w*|invoice\s+currency|\bkursi)\s*:?\s*([a-z]{3})\b", f)
+    if labelled:
+        code = labelled.group(1).upper()
+        return "ALL" if code == "LEK" else code
     for pattern, code in CURRENCY_PATTERNS:
         if re.search(pattern, f):
             return code
     return "ALL"
+
+
+# Fiscal invoices print "Kursi: EUR = 97.50"; e-invoices print the rate as
+# "Monedha e llogaritjes së TVSH-së: 96,650000".
+_RATE_LABELS = (r"\bkursi\b(?:\s+i\s+kembimit)?", r"exchange\s+rate", r"monedha\s+e\s+llogaritjes")
+
+
+def parse_exchange_rate(lines: list[str]) -> Optional[float]:
+    for line in lines:
+        f = fold(line)
+        for label in _RATE_LABELS:
+            m = re.search(label, f)
+            if m:
+                rate = next((v for v in _numbers_in(line[m.end():]) if v > 1), None)
+                if rate:
+                    return rate
+    return None
+
+
+# ─── Albanian e-invoice ("Faturë Elektronike") ────────────────────────────────
+# The PDF every supplier gets from the tax office's central invoicing platform.
+# Its layout is fixed. Each item is a table row three text lines tall:
+#
+#     KABELL FLEX 5X4 ...      2,11      0,00   S-VAT    description, unit price, discount, VAT code
+#     1   ml                             0,00            row no., unit, surcharge
+#                                                20      VAT rate (centred, so its own line)
+#     200.00                 505,30    421,08            quantity, total with VAT, net
+#
+# The printed unit price is rounded to cents (0,01 for 0,006), so the price we
+# keep is net / quantity. After the totals, an optional "Specifikimi i
+# hollësishëm" section repeats every item; reading stops before it.
+
+_EINVOICE_MARKERS = ("platforma qendrore e faturave", "vlera neto pa tvsh")
+_EINVOICE_ITEMS_START = "artikujt e fatur"
+_EINVOICE_ITEMS_END = ("shperndarja e tvsh", "total ne ", "specifikimi i hollesishem", "informacioni i pageses")
+_EINVOICE_ROW_NO = re.compile(r"^(\d{1,3})\s+(.+?)(?:\s+(-?\d[\d.,]*))?$")
+
+
+def is_einvoice(lines: list[str]) -> bool:
+    head = fold(" ".join(lines[:80]))
+    return any(marker in head for marker in _EINVOICE_MARKERS)
+
+
+def _einvoice_item(block: list[str], amounts: list[float], line_no: int) -> ParsedLine:
+    """One item from the lines above its quantity line. The block can start
+    with a page footer and header when the item opens a new page, so the
+    description is the last line ending in price + discount (+ VAT code)."""
+    row = ParsedLine(line_no=line_no, description="")
+    desc_i, price, discount, surcharge, rate = None, None, 0.0, 0.0, None
+    for i, line in enumerate(block):
+        tokens = line.split()
+        if len(tokens) > 1 and parse_number(tokens[-1]) is None and len(tokens[-1]) <= 12:
+            tokens = tokens[:-1]  # the VAT code ("S-VAT")
+        if len(tokens) >= 3 and any(c.isalpha() for c in " ".join(tokens[:-2])):
+            p, d = parse_number(tokens[-2]), parse_number(tokens[-1])
+            if p is not None and d is not None:
+                desc_i, price, discount = i, p, d
+                row.description = " ".join(tokens[:-2])
+
+    for line in block[desc_i + 1:] if desc_i is not None else block:
+        m = _EINVOICE_ROW_NO.match(line)
+        nums = _numbers_in(line)
+        if m and any(c.isalpha() for c in m.group(2)):
+            row.raw_unit = m.group(2).strip()
+            row.unit = UNITS.get(fold(row.raw_unit).rstrip("."))
+            surcharge = (parse_number(m.group(3)) if m.group(3) else None) or 0.0
+        elif len(line.split()) == 1 and nums and nums[0] in (0, 6, 10, 20):
+            rate = nums[0] / 100
+        elif desc_i is not None and sum(c.isalpha() for c in line) >= 3 and not nums:
+            row.description = f"{row.description} {line.strip()}"  # wrapped description
+
+    qty, gross, net = amounts[0], amounts[-2], amounts[-1]
+    row.quantity, row.net_amount, row.gross_amount = qty, net, gross
+    row.vat_amount = round(gross - net, 2)
+    if qty > 0:
+        row.unit_price = round(net / qty, 4)
+
+    if desc_i is None or qty <= 0:
+        row.issues.append(ROW_MISSING_NUMBERS)
+    else:
+        # The printed price is rounded to cents, so allow half a cent per unit.
+        printed_ok = abs(qty * price - discount + surcharge - net) <= qty * 0.005 + 0.02
+        rates = (rate,) if rate is not None else VAT_RATES
+        vat_ok = any(_close(net * (1 + r), gross) for r in rates)
+        if not (printed_ok and vat_ok):
+            row.issues.append(ROW_ARITHMETIC)
+
+    if any(word in fold(row.description) for word in EXTRA_COST_WORDS):
+        row.kind = "extra"
+    elif row.unit is None:
+        row.issues.append(ROW_UNIT_UNKNOWN)
+    return row
+
+
+def parse_einvoice_rows(lines: list[str]) -> list[ParsedLine]:
+    folded = [fold(line) for line in lines]
+    start = next((i + 1 for i, f in enumerate(folded) if _EINVOICE_ITEMS_START in f), 0)
+    end = next((i for i in range(start, len(lines)) if any(w in folded[i] for w in _EINVOICE_ITEMS_END)), len(lines))
+
+    rows: list[ParsedLine] = []
+    block: list[str] = []
+    for line in lines[start:end]:
+        nums = _numbers_in(line)
+        # The quantity line closes an item: quantity, total with VAT, net.
+        if len(nums) >= 3 and not any(c.isalpha() for c in line):
+            rows.append(_einvoice_item(block, nums, len(rows) + 1))
+            block = []
+        else:
+            block.append(line)
+    return rows
+
+
+def _labelled_amount(lines: list[str], label: str) -> Optional[float]:
+    """First amount after a label, e.g. 'Shuma totale me TVSH: 1 143,83 EUR'.
+    The first match is taken: the same labels repeat later in lek."""
+    for line in lines:
+        m = re.search(label + r"[^:]*:\s*(-?[\d][\d .,]*)", fold(line))
+        if m:
+            return parse_number(m.group(1).replace(" ", ""))
+    return None
+
+
+def parse_einvoice_totals(lines: list[str]) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    return (
+        _labelled_amount(lines, r"shuma\s+totale\s+pa\s+tvsh"),
+        _labelled_amount(lines, r"shuma\s+totale\s+e\s+tvsh"),
+        _labelled_amount(lines, r"shuma\s+totale\s+me\s+tvsh"),
+    )
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
@@ -519,12 +667,20 @@ def parse_invoice(text: str) -> ParsedInvoice:
     lines = [line for line in lines if line]
 
     inv = ParsedInvoice()
-    inv.lines = parse_rows(lines)
+    einvoice = is_einvoice(lines)
+    inv.lines = parse_einvoice_rows(lines) if einvoice else parse_rows(lines)
     inv.invoice_number = parse_invoice_number(lines)
     inv.invoice_date = parse_date(lines)
     inv.supplier_name, inv.supplier_tax_number = parse_supplier(lines)
     inv.currency = parse_currency(text)
-    inv.subtotal, inv.vat_total, inv.total = parse_totals(lines, inv.lines)
+    if inv.currency != "ALL":
+        inv.exchange_rate = parse_exchange_rate(lines)
+        if inv.exchange_rate is None:
+            inv.issues.append(INV_NO_RATE)
+    if einvoice:
+        inv.subtotal, inv.vat_total, inv.total = parse_einvoice_totals(lines)
+    else:
+        inv.subtotal, inv.vat_total, inv.total = parse_totals(lines, inv.lines)
 
     priced = [r for r in inv.lines if r.kind != "skip" and r.net_amount is not None]
     net_sum = round(sum(r.net_amount for r in priced), 2)

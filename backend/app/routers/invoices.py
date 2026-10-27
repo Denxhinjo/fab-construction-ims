@@ -12,6 +12,7 @@ Accept  -> the stock rows are booked into the chosen warehouse as Purchase
 import json
 import logging
 import math
+import re
 from datetime import date, datetime, timezone
 from typing import Optional
 
@@ -41,6 +42,9 @@ from ..services.permissions import require_location_access
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
+
+# Stock values and average costs are kept in lek.
+HOME_CURRENCY = "ALL"
 
 
 
@@ -204,6 +208,7 @@ def upload_invoice(
         inv.supplier_name_raw = parsed.supplier_name
         inv.supplier_tax_number = parsed.supplier_tax_number
         inv.currency = parsed.currency
+        inv.exchange_rate = parsed.exchange_rate
         inv.subtotal, inv.vat_total, inv.total = parsed.subtotal, parsed.vat_total, parsed.total
 
         supplier = matching.match_supplier(db, parsed.supplier_name, parsed.supplier_tax_number)
@@ -260,6 +265,15 @@ def _apply_update(db: Session, inv: Invoice, payload: InvoiceUpdate) -> None:
         inv.invoice_number = (payload.invoice_number or "").strip() or None
     if "invoice_date" in fields:
         inv.invoice_date = payload.invoice_date
+    if "currency" in fields and payload.currency:
+        currency = payload.currency.strip().upper()
+        if not re.fullmatch(r"[A-Z]{3}", currency):
+            raise HTTPException(status_code=400, detail="Currency must be a 3-letter code such as ALL or EUR")
+        inv.currency = currency
+    if "exchange_rate" in fields:
+        if payload.exchange_rate is not None and payload.exchange_rate <= 0:
+            raise HTTPException(status_code=400, detail="The exchange rate must be greater than zero")
+        inv.exchange_rate = payload.exchange_rate
     if "location_id" in fields:
         if payload.location_id and not db.get(Location, payload.location_id):
             raise HTTPException(status_code=400, detail="Warehouse not found")
@@ -340,6 +354,8 @@ def _validate_for_booking(inv: Invoice) -> list[InvoiceLine]:
         raise HTTPException(status_code=400, detail="Choose the warehouse that receives the materials")
     if not inv.supplier_id:
         raise HTTPException(status_code=400, detail="Choose or create the supplier")
+    if inv.currency != HOME_CURRENCY and not inv.exchange_rate:
+        raise HTTPException(status_code=400, detail=f"Enter the {inv.currency} to lek exchange rate")
     stock_lines = [line for line in inv.lines if line.kind == "stock"]
     if not stock_lines:
         raise HTTPException(status_code=400, detail="The invoice has no material rows to book")
@@ -383,6 +399,14 @@ def accept_invoice(
     return _out(db, inv)
 
 
+def _in_lek(inv: Invoice, amount: Optional[float]) -> Optional[float]:
+    """Stock is valued in lek, so a foreign-currency price is converted
+    before it enters a material's average cost."""
+    if amount is None or inv.currency == HOME_CURRENCY:
+        return amount
+    return round(amount * inv.exchange_rate, 4)
+
+
 def _book(db: Session, inv: Invoice, stock_lines: list[InvoiceLine], user: User) -> None:
     supplier = db.get(Supplier, inv.supplier_id)
     location = db.get(Location, inv.location_id)
@@ -399,7 +423,7 @@ def _book(db: Session, inv: Invoice, stock_lines: list[InvoiceLine], user: User)
             line.product_id = product.id
             line.match_method = "new"
 
-        apply_purchase_cost(product, line.quantity, line.unit_price)
+        apply_purchase_cost(product, line.quantity, _in_lek(inv, line.unit_price))
         product.supplier_id = supplier.id
         record_movement(
             db,

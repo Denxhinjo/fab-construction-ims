@@ -420,7 +420,10 @@
     "duplicateText": "Fatura {{number}} nga ky furnizues është futur tashmë në stok. Ta regjistroj përsëri?",
     "bookAnyway": "Regjistro përsëri",
     "rejectTitle": "Ta refuzoj këtë faturë?",
-    "rejectText": "Asgjë nuk shtohet në stok. Skedari mbetet në listë si i refuzuar."
+    "rejectText": "Asgjë nuk shtohet në stok. Skedari mbetet në listë si i refuzuar.",
+    "currency": "Monedha",
+    "rate": "Kursi i këmbimit {{currency}} në lek",
+    "needRate": "Vendosni kursin e këmbimit {{currency}} në lek për të vazhduar"
   },
   "issues": {
     "arithmetic_mismatch": "Sasia × çmimi nuk jep vlerën e rreshtit në faturë.",
@@ -435,7 +438,8 @@
     "no_date": "Data nuk u gjet.",
     "no_supplier": "Furnizuesi nuk u gjet.",
     "totals_computed": "Totalet nuk u gjetën; u mblodhën nga rreshtat.",
-    "totals_mismatch": "Rreshtat nuk japin totalin e faturës."
+    "totals_mismatch": "Rreshtat nuk japin totalin e faturës.",
+    "no_exchange_rate": "Fatura nuk është në lek dhe kursi i këmbimit nuk u gjet. Vendoseni pranë monedhës."
   },
   "transfers": {
     "title": "Transferimet",

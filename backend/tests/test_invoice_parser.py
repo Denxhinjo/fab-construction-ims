@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from app.services.invoice_parser import (
-    INV_TOTALS_COMPUTED, ROW_ARITHMETIC, ROW_UNIT_UNKNOWN,
+    INV_NO_RATE, INV_TOTALS_COMPUTED, ROW_ARITHMETIC, ROW_UNIT_UNKNOWN,
     parse_invoice, parse_number,
 )
 
@@ -152,3 +152,65 @@ TOTALI 342.00"""
     row = parse_invoice(text).lines[0]
     assert row.description == "Hidroizolim bitumi me fibra per tarraca"
     assert row.unit == "kovë"
+
+
+def test_albanian_einvoice():
+    """Text layer of a real e-invoice from the central invoicing platform
+    (Faturë Elektronike), 11 pages: items, VAT summary, totals in EUR and
+    lek, payment details, QR codes, then every item repeated in the detailed
+    specification. Names, tax numbers and fiscal codes are fictional and the
+    bank accounts are removed; layout and amounts are untouched."""
+    inv = parse_invoice((FIXTURES / "einvoice_text_layer.txt").read_text(encoding="utf-8"))
+
+    assert inv.invoice_number == "6196/2025"
+    assert inv.invoice_date == date(2025, 11, 11)
+    assert inv.supplier_name == "Elektro Drita sh.p.k"
+    assert inv.supplier_tax_number == "M01234567E"  # the seller's, not the buyer's
+    assert inv.currency == "EUR"                    # despite the "TOTAL NË LEK" block
+    assert inv.exchange_rate == 96.65
+    assert (inv.subtotal, inv.vat_total, inv.total) == (953.15, 190.68, 1143.83)
+    assert inv.issues == []
+
+    assert len(inv.lines) == 18  # the detailed specification is not counted again
+    assert all(r.confidence == "ok" and r.kind == "stock" for r in inv.lines)
+    cable = inv.lines[0]
+    assert cable.description == "KABELL FLEX 5X4 ME VESHJE GOME FRO-HP SIGN"
+    assert (cable.quantity, cable.unit, cable.net_amount, cable.vat_amount, cable.gross_amount) == (
+        200, "m", 421.08, 84.22, 505.30,
+    )
+    assert cable.unit_price == 2.1054  # net / quantity; the invoice prints 2,11
+    lugs = inv.lines[9]
+    assert lugs.description == "PUNTOLINA TE IZOLUARA 1.5MM2 L=8MM"
+    assert (lugs.quantity, lugs.unit, lugs.unit_price) == (1000, "copë", 0.006)  # printed 0,01
+    assert round(sum(r.net_amount for r in inv.lines), 2) == inv.subtotal
+
+
+def test_einvoice_row_that_does_not_add_up_needs_checking():
+    text = (FIXTURES / "einvoice_text_layer.txt").read_text(encoding="utf-8")
+    text = text.replace("200.00 505,30 421,08", "200.00 505,30 391,08", 1)  # net misprinted
+    cable = parse_invoice(text).lines[0]
+    assert ROW_ARITHMETIC in cable.issues
+
+
+def test_fiscal_invoice_in_euro_takes_currency_and_rate_from_kursi():
+    text = """FATURE TATIMORE SHITJE
+Nr. Fature 17329 Data 07/10/2026
+Pershkrimi i mallit Njesi Sasia Cmimi Vlera
+1 Kanal kabllor 25x16 cope 100 2.975 297.50
+Kursi: EUR =97.50
+TOTALI EUR 297.50
+TOTALI LEK 29,006.25"""
+    inv = parse_invoice(text)
+    assert inv.currency == "EUR"
+    assert inv.exchange_rate == 97.5
+
+
+def test_foreign_currency_without_rate_is_flagged():
+    text = """Invoice No: INV-9
+Invoice currency: EUR
+Description Qty Unit Price Amount
+Cable 10 pcs 2.00 20.00
+Total 20.00"""
+    inv = parse_invoice(text)
+    assert inv.currency == "EUR" and inv.exchange_rate is None
+    assert INV_NO_RATE in inv.issues

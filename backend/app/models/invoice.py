@@ -44,6 +44,8 @@ class Invoice(Base):
     invoice_number = Column(String(100), nullable=True, index=True)
     invoice_date = Column(Date, nullable=True)
     currency = Column(String(3), default="ALL", nullable=False)
+    # Lek per unit of `currency`; costs are converted with it when booked.
+    exchange_rate = Column(Float, nullable=True)
     subtotal = Column(Float, nullable=True)
     vat_total = Column(Float, nullable=True)
     total = Column(Float, nullable=True)
