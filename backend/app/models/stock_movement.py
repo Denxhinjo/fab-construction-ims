@@ -15,7 +15,7 @@ MOVEMENT_TYPES = [
     "Opening Balance",
 ]
 
-# Types that increase stock
+#this list holds the movement types that increase stock
 INBOUND_TYPES = {
     "Stock In",
     "Purchase Receipt",
@@ -24,7 +24,7 @@ INBOUND_TYPES = {
     "Opening Balance",
 }
 
-# Types that decrease stock
+#this list holds the movement types that decrease stock
 OUTBOUND_TYPES = {
     "Stock Out",
     "Warehouse Transfer Out",
@@ -46,16 +46,16 @@ class StockMovement(Base):
     movement_date = Column(Date, nullable=False)
     notes = Column(Text, nullable=True)
     reference_number = Column(String(100), nullable=True)
-    # Location context
+    #these columns keep the locations involved
     source_location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
     destination_location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
-    # Business entity context. project_id / purchase_order_id belong to
-    # features that were removed; the columns stay so old rows keep their data.
+    #these columns keep the business context. project_id / purchase_order_id belong to
+    #removed features and stay so old rows keep their data
     project_id = Column(Integer, nullable=True)
     purchase_order_id = Column(Integer, nullable=True)
     transfer_id = Column(Integer, ForeignKey("warehouse_transfers.id"), nullable=True)
     invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=True, index=True)
-    # Approval/receiving context
+    #these columns keep who approved and received
     approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     received_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

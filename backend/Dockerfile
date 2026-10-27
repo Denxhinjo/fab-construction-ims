@@ -2,9 +2,8 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# tesseract-ocr + Albanian language data read scanned and photographed
-# invoices (app/services/invoice_reader.py). English and orientation
-# detection come with tesseract-ocr itself.
+#this line installs tesseract ocr and the albanian language data to read scanned and photographed invoices
+#this also brings english and page orientation detection, they come with tesseract itself
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev gcc tesseract-ocr tesseract-ocr-sqi \
     && rm -rf /var/lib/apt/lists/*

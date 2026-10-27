@@ -171,7 +171,7 @@ export default function LocationList() {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/*this block is the create/edit modal*/}
       <Modal open={modal !== null} onClose={closeModal} title={modal === 'create' ? t('locations.createLocation') : t('locations.editLocation')} size="lg">
         <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField label={t('locations.name')} required error={errors.name}>

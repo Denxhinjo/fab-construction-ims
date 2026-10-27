@@ -1,13 +1,13 @@
 """
-Turns an uploaded invoice file into plain text lines for invoice_parser.
+this file turns an uploaded invoice file into plain text lines for invoice_parser
 
-  * Digital PDF (exported from invoicing software): the PDF's own text layer
-    is used. Words are regrouped into visual rows by their position, because
-    the text layer's order often runs column by column instead of row by row.
-  * Scanned PDF (CamScanner etc.) or photo (JPEG/PNG): Tesseract OCR with the
-    Albanian + English language data. Needs the `tesseract` binary on the
-    server (see backend/Dockerfile); without it these files are marked as
-    unreadable and can still be entered by hand.
+  * digital pdf (exported from invoicing software): the pdf's own text layer
+    is used. words are regrouped into visual rows by their position, because
+    the text layer often runs column by column instead of row by row
+  * scanned pdf (camscanner etc.) or photo (jpeg/png): tesseract ocr with the
+    albanian + english language data. it needs the `tesseract` binary on the
+    server (see backend/Dockerfile), without it these files are marked as
+    unreadable and can still be entered by hand
 """
 from __future__ import annotations
 
@@ -21,14 +21,14 @@ from ..config import settings
 
 PDF_MAGIC = b"%PDF"
 IMAGE_MAGIC = (b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n")
-# A text layer is read in milliseconds, so long e-invoices (items, VAT
-# summary and payment details over a dozen pages) are read whole. OCR takes
-# seconds per page and stops sooner.
+#these lines set how many pages are read: a text layer is read in milliseconds so long
+#e-invoices (items, vat summary and payment details over a dozen pages) are read whole,
+#while ocr takes seconds per page and stops sooner
 MAX_PAGES = 40
 MAX_OCR_PAGES = 5
 OCR_DPI = 300
-# A page with fewer letters/digits than this in its text layer is a scan
-# (CamScanner adds just its own name, for instance).
+#this line sets how few letters/digits a page's text layer can have before it counts as
+#a scan (camscanner adds just its own name, for instance)
 MIN_TEXT_CHARS = 40
 
 
@@ -66,13 +66,13 @@ def read_document(data: bytes) -> ReadResult:
     raise UnsupportedFile("Only PDF, JPEG and PNG files are accepted.")
 
 
-# ─── PDF ──────────────────────────────────────────────────────────────────────
+#this section reads pdf files
 def _read_pdf(data: bytes) -> ReadResult:
-    import fitz  # PyMuPDF
+    import fitz  #this line imports pymupdf
 
     try:
         doc = fitz.open(stream=data, filetype="pdf")
-    except Exception as exc:  # corrupt or encrypted
+    except Exception as exc:  #this line catches corrupt or encrypted pdfs
         raise UnsupportedFile("The PDF could not be opened.") from exc
 
     pages = [doc[i] for i in range(min(len(doc), MAX_PAGES))]
@@ -98,9 +98,9 @@ def _read_pdf(data: bytes) -> ReadResult:
 
 
 def _page_text(page) -> str:
-    """Rebuild visual rows from word boxes: words whose vertical centres are
-    within half a line height of each other belong to the same row."""
-    words = page.get_text("words")  # (x0, y0, x1, y1, word, block, line, word_no)
+    """this function rebuilds visual rows from word boxes: words whose vertical centres
+    are within half a line height of each other belong to the same row"""
+    words = page.get_text("words")  #this line gets (x0, y0, x1, y1, word, block, line, word_no) for every word
     if not words:
         return ""
     height = median(w[3] - w[1] for w in words) or 1
@@ -117,7 +117,7 @@ def _page_text(page) -> str:
     return "\n".join(" ".join(w[4] for w in sorted(row, key=lambda w: w[0])) for row in rows)
 
 
-# ─── OCR ──────────────────────────────────────────────────────────────────────
+#this section reads scans and photos with ocr
 def ocr_available() -> bool:
     if settings.TESSERACT_CMD:
         return os.path.isfile(settings.TESSERACT_CMD)
@@ -134,8 +134,8 @@ def _ocr(image) -> str:
         pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
 
     image = ImageOps.grayscale(image)
-    # Phone photos are often small after messaging apps recompress them;
-    # Tesseract reads best at roughly 300 dpi, i.e. ~2500 px across a page.
+    #this block enlarges small photos, since messaging apps recompress them and
+    #tesseract reads best at roughly 300 dpi, i.e. ~2500 px across a page
     longest = max(image.size)
     if longest < 2000:
         scale = 2500 / longest
@@ -144,15 +144,15 @@ def _ocr(image) -> str:
 
     available = set(pytesseract.get_languages(config=""))
     langs = "+".join(l for l in settings.OCR_LANGUAGES.split("+") if l in available) or "eng"
-    # psm 6 = "a single uniform block of text": keeps each table row on one
-    # line, which is what the row parser needs.
+    #this line uses psm 6 ("a single uniform block of text") so each table row stays
+    #on one line, which is what the row parser needs
     return pytesseract.image_to_string(image, lang=langs, config="--psm 6")
 
 
 def _upright(image, pytesseract):
-    """Rotate photos taken sideways or upside down. Orientation detection
-    needs the 'osd' language data; if it's missing, or the page has too
-    little text to judge, the image is used as is."""
+    """this function rotates photos taken sideways or upside down. orientation
+    detection needs the 'osd' language data, and if it's missing or the page has
+    too little text to judge, the image is used as is"""
     try:
         osd = pytesseract.image_to_osd(image, output_type=pytesseract.Output.DICT)
     except Exception:

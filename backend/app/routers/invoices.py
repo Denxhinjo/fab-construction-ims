@@ -1,13 +1,13 @@
 """
-Supplier invoices ("Pranimet").
+this file handles supplier invoices ("Pranimet")
 
-Upload  -> the file is read (text layer or OCR), parsed and matched, and the
-           invoice lands in "review" (or "failed" when nothing could be read).
-Review  -> a person corrects the supplier, rows and matches; PUT saves that
-           for later without touching stock.
-Accept  -> the stock rows are booked into the chosen warehouse as Purchase
-           Receipt movements, new materials are created, average costs are
-           updated and supplier aliases are remembered for the next invoice.
+upload  -> the file is read (text layer or ocr), parsed and matched, and the
+           invoice lands in "review" (or "failed" when nothing could be read)
+review  -> a person corrects the supplier, rows and matches, and PUT saves that
+           for later without touching stock
+accept  -> the stock rows are booked into the chosen warehouse as purchase
+           receipt movements, new materials are created, average costs are
+           updated and supplier aliases are remembered for the next invoice
 """
 import json
 import logging
@@ -43,13 +43,13 @@ from ..services.permissions import require_location_access
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 
-# Stock values and average costs are kept in lek.
+#this line sets lek as the currency stock values and average costs are kept in
 HOME_CURRENCY = "ALL"
 
 
 
 def _content_type(kind: str, data: bytes) -> str:
-    # From the bytes we validated, not the client's Content-Type header.
+    #this line uses the file type found in the bytes we checked, not the browser's content-type header
     if kind == "pdf":
         return "application/pdf"
     return "image/png" if data.startswith(b"\x89PNG") else "image/jpeg"
@@ -96,7 +96,7 @@ def _out(db: Session, inv: Invoice) -> InvoiceOut:
     return out
 
 
-# ─── List / read ──────────────────────────────────────────────────────────────
+#this section lists and reads invoices
 @router.get("", response_model=InvoiceListOut)
 def list_invoices(
     page: int = Query(1, ge=1),
@@ -159,7 +159,7 @@ def get_invoice_file(invoice_id: int, db: Session = Depends(get_db), _: User = D
     )
 
 
-# ─── Upload ───────────────────────────────────────────────────────────────────
+#this section uploads and reads invoices
 @router.post("", response_model=InvoiceOut, status_code=status.HTTP_201_CREATED)
 def upload_invoice(
     file: UploadFile = File(...),
@@ -198,7 +198,7 @@ def upload_invoice(
         parsed, issues = None, ["ocr_unavailable"]
     except UnsupportedFile as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    except Exception:  # a broken file must not lose the upload
+    except Exception:  #this line makes sure a broken file never loses the upload
         log.exception("Reading invoice %s failed", inv.file_name)
         parsed, issues = None, ["read_error"]
 
@@ -242,7 +242,7 @@ def upload_invoice(
     return _out(db, inv)
 
 
-# ─── Review ───────────────────────────────────────────────────────────────────
+#this section saves, rejects and accepts reviewed invoices
 def _apply_update(db: Session, inv: Invoice, payload: InvoiceUpdate) -> None:
     if inv.status not in EDITABLE_INVOICE_STATUSES:
         raise HTTPException(status_code=400, detail="This invoice is already closed")
@@ -348,8 +348,8 @@ def _category_id(db: Session, name: Optional[str]) -> Optional[int]:
 
 
 def _validate_for_booking(inv: Invoice) -> list[InvoiceLine]:
-    """Every check that can refuse an acceptance, done before anything is
-    booked so a refusal never leaves half an invoice in stock."""
+    """this function runs every check that can refuse an acceptance before anything is
+    booked, so a refusal never leaves half an invoice in stock"""
     if not inv.location_id:
         raise HTTPException(status_code=400, detail="Choose the warehouse that receives the materials")
     if not inv.supplier_id:
@@ -400,8 +400,8 @@ def accept_invoice(
 
 
 def _in_lek(inv: Invoice, amount: Optional[float]) -> Optional[float]:
-    """Stock is valued in lek, so a foreign-currency price is converted
-    before it enters a material's average cost."""
+    """this function converts a foreign-currency price to lek before it enters a
+    material's average cost, since stock is valued in lek"""
     if amount is None or inv.currency == HOME_CURRENCY:
         return amount
     return round(amount * inv.exchange_rate, 4)

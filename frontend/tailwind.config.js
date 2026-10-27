@@ -16,7 +16,7 @@ export default {
           800: '#92400e',
           900: '#78350f',
         },
-        // Sidebar and dark surfaces
+        //these colours are for the sidebar and dark surfaces
         ink: {
           950: '#121316',
           900: '#18191d',
@@ -25,7 +25,7 @@ export default {
           500: '#8a8e98',
           300: '#c7cad1',
         },
-        // Page background and hairlines
+        //these colours are for the page background and hairlines
         paper: '#f6f5f1',
         line: '#e6e4de',
       },

@@ -87,7 +87,7 @@ def test_archive_refuses_materials_with_stock(client, admin_headers, db_session,
 def test_dashboard(client, admin_headers, db_session, two_locations, products_in_both_locations):
     loc_a, loc_b = two_locations
     _, product_b = products_in_both_locations
-    add_stock(db_session, product_b, loc_a, 20)  # A can cover B's shortfall
+    add_stock(db_session, product_b, loc_a, 20)  #this line lets a cover b's shortfall
 
     body = client.get("/api/dashboard", headers=admin_headers).json()
     assert body["todo"]["below_min"] == 1

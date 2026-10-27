@@ -18,9 +18,9 @@ router = APIRouter(prefix="/api", tags=["dashboard"])
 
 
 def _below_min(db: Session) -> list[dict]:
-    """Every (material, warehouse) under its minimum, with the warehouse
-    that could cover the gap by transfer: the one holding the most stock
-    above its own minimum."""
+    """this function lists every (material, warehouse) under its minimum, with the
+    warehouse that could cover the gap by transfer: the one holding the most
+    stock above its own minimum"""
     stocks = (
         db.query(ProductStock)
         .options(joinedload(ProductStock.product), joinedload(ProductStock.location))
@@ -118,7 +118,7 @@ def get_dashboard(db: Session = Depends(get_db), _: User = Depends(get_current_u
 
 @router.get("/dashboard/counts")
 def nav_counts(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    """Badge numbers for the sidebar; cheap enough to poll."""
+    """this function returns the badge numbers for the sidebar, cheap enough to poll"""
     return {
         "invoices_to_review": db.query(Invoice).filter(Invoice.status.in_(EDITABLE_INVOICE_STATUSES)).count(),
         "transfers_in_transit": db.query(WarehouseTransfer).filter(

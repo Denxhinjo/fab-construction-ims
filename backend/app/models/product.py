@@ -5,9 +5,9 @@ from ..database import Base
 
 
 class Product(Base):
-    """A material. Its stock lives per warehouse in ProductStock; `quantity`
-    is the cached total across all warehouses, kept in sync by
-    inventory_service.record_movement."""
+    """this class is a material. its stock lives per warehouse in ProductStock, and
+    `quantity` is the cached total across all warehouses, kept in sync by
+    inventory_service.record_movement"""
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -17,12 +17,12 @@ class Product(Base):
     description = Column(Text, nullable=True)
     quantity = Column(Float, default=0, nullable=False)
     unit = Column(String(50), default="copë", nullable=False)
-    # Default minimum for warehouses that don't set their own (ProductStock.min_quantity).
+    #this line keeps the default minimum for warehouses that don't set their own (ProductStock.min_quantity)
     min_stock_level = Column(Float, default=0, nullable=False)
     unit_price = Column(Float, nullable=True)
     latest_cost = Column(Float, nullable=True)
     avg_cost = Column(Float, nullable=True)
-    # Legacy single "home" warehouse from before per-warehouse stock. No longer read.
+    #this line keeps the old single "home" warehouse from before per-warehouse stock, it is no longer read
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
     price_currency = Column(String(3), default="ALL", nullable=False)
@@ -41,6 +41,6 @@ class Product(Base):
 
     @property
     def cost(self) -> float:
-        """Cost used to value stock: weighted average from accepted invoices,
-        falling back to the last invoice price, then the manual price."""
+        """this function returns the cost used to value stock: the weighted average from
+        accepted invoices, then the last invoice price, then the manual price"""
         return self.avg_cost or self.latest_cost or self.unit_price or 0.0

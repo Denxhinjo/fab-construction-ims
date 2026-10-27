@@ -15,7 +15,7 @@ _MASK_PHONE = "***"
 
 
 def _mask_supplier(out: SupplierOut) -> SupplierOut:
-    """Redact contact details for non-admin API responses."""
+    """this function hides contact details in api responses for non-admins"""
     if out.email:
         prefix = out.email.split("@")[0][:2]
         out.email = prefix + _MASK_EMAIL

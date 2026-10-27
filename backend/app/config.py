@@ -4,13 +4,13 @@ from typing import List
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/fab_construction_ims"
-    # No default on purpose -- a missing SECRET_KEY should fail startup loudly
-    # rather than silently sign JWTs with a value anyone can read in this file.
+    #this line has no default on purpose: a missing SECRET_KEY should fail startup loudly
+    #instead of silently signing jwts with a value anyone can read in this file
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    # Invoice reading. TESSERACT_CMD is only needed when the binary isn't on
-    # PATH (e.g. C:\Program Files\Tesseract-OCR\tesseract.exe on Windows).
+    #these settings are for invoice reading. TESSERACT_CMD is only needed when the binary
+    #isn't on PATH (e.g. C:\Program Files\Tesseract-OCR\tesseract.exe on windows)
     TESSERACT_CMD: str = ""
     OCR_LANGUAGES: str = "sqi+eng"
     MAX_INVOICE_FILE_MB: int = 15
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
-        # Older .env files still carry settings of removed features (MEDIA_DIR, ...).
+        #this line ignores settings of removed features that older .env files still carry (MEDIA_DIR, ...)
         extra = "ignore"
 
 

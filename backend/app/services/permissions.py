@@ -1,8 +1,9 @@
 """
-Warehouse-permission helpers. Everyone signed in can see stock in every
-warehouse; changing stock in a warehouse (receiving an invoice into it,
-sending a transfer from it, receiving a transfer into it, correcting a
-count) needs a grant via user_location_permissions. Admins are unrestricted.
+this file holds the warehouse permission helpers. everyone signed in can see
+stock in every warehouse, but changing stock in a warehouse (receiving an
+invoice into it, sending a transfer from it, receiving a transfer into it,
+correcting a count) needs a grant in user_location_permissions. admins are
+unrestricted
 """
 from typing import Optional
 from fastapi import HTTPException

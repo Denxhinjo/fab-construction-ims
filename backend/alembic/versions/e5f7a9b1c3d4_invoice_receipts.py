@@ -1,11 +1,11 @@
-"""invoice receipts, per-warehouse minimums, simplified transfers
+"""this migration adds invoice receipts, per-warehouse minimums and simplified transfers
 
 Revision ID: e5f7a9b1c3d4
 Revises: d4e6f8a0b1c2
 Create Date: 2026-10-26
 
-Tables of the removed features (projects, purchase orders, work processes)
-are intentionally left in place with their data.
+the tables of the removed features (projects, purchase orders, work processes)
+are left in place with their data on purpose
 """
 from alembic import op
 import sqlalchemy as sa
@@ -90,9 +90,9 @@ def upgrade() -> None:
     op.add_column("stock_movements", sa.Column("invoice_id", sa.Integer, sa.ForeignKey("invoices.id"), nullable=True))
     op.create_index("ix_stock_movements_invoice_id", "stock_movements", ["invoice_id"])
 
-    # Products created through the old product form carried their stock only
-    # as products.quantity + a single location_id, with no product_stock
-    # row. Stock is now read per warehouse, so give each of those its row.
+    #this block gives every product made through the old product form its product_stock
+    #row, since those carried their stock only as products.quantity + one location_id
+    #and stock is now read per warehouse
     op.execute("""
         INSERT INTO product_stock (product_id, location_id, quantity, reserved_quantity)
         SELECT p.id, p.location_id, p.quantity, 0
@@ -101,8 +101,8 @@ def upgrade() -> None:
           AND NOT EXISTS (SELECT 1 FROM product_stock s WHERE s.product_id = p.id)
     """)
 
-    # Transfers still waiting in the old approval steps never moved stock;
-    # the new flow has no approval step, so close them.
+    #this block closes transfers still waiting in the old approval steps, since they
+    #never moved stock and the new flow has no approval step
     op.execute("""
         UPDATE warehouse_transfers SET status = 'CANCELLED'
         WHERE status IN ('DRAFT', 'PENDING', 'APPROVED')

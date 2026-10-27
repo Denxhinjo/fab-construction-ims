@@ -11,7 +11,7 @@ export interface NoteData {
   items: { name: string; sku?: string; quantity: number; unit: string }[]
 }
 
-/** Printable delivery note ("fletëdërgesë"). Rendered only when printing. */
+//this component is the printable delivery note ("fletëdërgesë"), only rendered when printing
 export default function DeliveryNote({ note }: { note: NoteData }) {
   const { t } = useTranslation()
   return (

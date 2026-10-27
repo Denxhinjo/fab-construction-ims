@@ -1,9 +1,8 @@
 from sqlalchemy import Table, Column, Integer, ForeignKey
 from ..database import Base
 
-# Many-to-many: which warehouses/locations a non-admin user is allowed to
-# create or edit products in. Admins are unrestricted regardless of this
-# table's contents (checked in code, not modeled here).
+#this table links non-admin users to the warehouses they may create or edit products in.
+#admins are unrestricted whatever this table holds (checked in code, not modelled here)
 user_location_permissions = Table(
     "user_location_permissions",
     Base.metadata,

@@ -1,8 +1,8 @@
 """
-Warehouse transfers. Sending a transfer takes the stock out of the source
-warehouse immediately; it enters the destination when someone there
-confirms what arrived. A shortfall closes the transfer as "received with
-differences" and the missing quantity never enters stock.
+this file handles warehouse transfers. sending a transfer takes the stock out of
+the source warehouse immediately, and it enters the destination when someone
+there confirms what arrived. a shortfall closes the transfer as "received with
+differences" and the missing quantity never enters stock
 """
 import math
 from datetime import date, datetime, timezone
@@ -25,7 +25,7 @@ from ..services.permissions import require_location_access
 
 router = APIRouter(prefix="/api/transfers", tags=["transfers"])
 
-# Filter groups the UI asks for, mapped to stored statuses.
+#this dictionary maps the filter groups the ui asks for to stored statuses
 STATUS_GROUPS = {
     "open": list(OPEN_TRANSFER_STATUSES),
     "closed": ["RECEIVED", "RECEIVED_PARTIAL"],

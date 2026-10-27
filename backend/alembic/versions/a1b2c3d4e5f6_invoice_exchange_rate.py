@@ -1,11 +1,11 @@
-"""invoice exchange rate
+"""this migration adds the invoice exchange rate
 
 Revision ID: a1b2c3d4e5f6
 Revises: e5f7a9b1c3d4
 Create Date: 2026-10-27
 
-Foreign-currency invoices (EUR e-invoices) carry the rate to lek, so their
-prices can be converted before they reach a material's average cost.
+foreign-currency invoices (eur e-invoices) carry the rate to lek, so their
+prices can be converted before they reach a material's average cost
 """
 from alembic import op
 import sqlalchemy as sa

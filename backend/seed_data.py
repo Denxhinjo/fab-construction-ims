@@ -1,8 +1,8 @@
 """
-Seed demo/dev data for Fab Construction IMS.
+this file seeds demo/dev data for fab construction ims
 
-Only populates a brand-new database: if any user exists it does nothing,
-so it is safe in a start command. Run it yourself for a dev database:
+it only fills a brand-new database: if any user exists it does nothing, so it
+is safe in a start command. run it yourself for a dev database:
 
     docker compose exec backend python seed_data.py
 """
@@ -30,8 +30,8 @@ SUPPLIERS = [
     ("Gurorja Krujë", "K45678901R"),
 ]
 
-# name, sku, category, unit, avg cost (Lekë, pa TVSH), supplier,
-# (qty, min) per depot in DEPOTS order
+#this list holds name, sku, category, unit, avg cost (lekë, pa tvsh), supplier,
+#and (qty, min) per depot in DEPOTS order
 MATERIALS = [
     ("Çimento CEM II 42.5R, 25 kg", "CEM-425-25", "Lidhës", "thes", 640, 0, [(820, 200), (140, 100), (95, 50)]),
     ("Hekur armature Ø12, 12 m", "HEK-012-12", "Hekur", "shufër", 1490, 1, [(340, 100), (18, 50), (72, 40)]),

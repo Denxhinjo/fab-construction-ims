@@ -94,7 +94,7 @@ class InvoiceOut(BaseModel):
     accepted_at: Optional[datetime] = None
     created_at: datetime
     lines: list[InvoiceLineOut] = []
-    # Filled in by the router
+    #these fields are filled in by the router
     duplicate_of: Optional[int] = None
     review_queue: list[int] = []
 
@@ -107,7 +107,7 @@ class InvoiceOut(BaseModel):
 
 
 class InvoiceLineIn(BaseModel):
-    id: Optional[int] = None  # None = a row added by hand
+    id: Optional[int] = None  #this line is None for a row added by hand
     kind: str = "stock"
     raw_description: Optional[str] = None
     quantity: Optional[float] = None
@@ -139,7 +139,7 @@ class InvoiceUpdate(BaseModel):
     currency: Optional[str] = None
     exchange_rate: Optional[float] = None
     location_id: Optional[int] = None
-    # When given, replaces the invoice's rows: rows not listed are removed.
+    #this line replaces the invoice's rows when given, and rows not listed are removed
     lines: Optional[list[InvoiceLineIn]] = None
 
     @model_validator(mode="after")
@@ -150,5 +150,5 @@ class InvoiceUpdate(BaseModel):
 
 
 class InvoiceAccept(InvoiceUpdate):
-    # Set after the user has seen the "already booked" warning.
+    #this line is set after the user has seen the "already booked" warning
     allow_duplicate: bool = False

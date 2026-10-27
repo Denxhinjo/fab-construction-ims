@@ -1,4 +1,4 @@
-"""work_process: add project_id FK
+"""this migration adds the project_id fk to work_process
 
 Revision ID: d4e6f8a0b1c2
 Revises: b2c4d6e8f0a1

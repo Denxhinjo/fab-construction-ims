@@ -55,7 +55,7 @@ def _stock_rows(
         for loc in locations:
             s = by_loc.get(loc.id)
             qty = s.quantity if s else 0.0
-            # A material's default minimum applies only where it is kept.
+            #this line applies a material's default minimum only where it is kept
             minimum = s.effective_min if s else 0.0
             cells[loc.id] = StockCell(quantity=qty, min=minimum, below_min=minimum > 0 and qty < minimum)
         if location_id and (location_id not in cells or (cells[location_id].quantity == 0 and not cells[location_id].min)):
@@ -75,7 +75,7 @@ def _stock_rows(
     return rows
 
 
-# ─── Stock matrix ─────────────────────────────────────────────────────────────
+#this section builds the stock matrix
 @stock_router.get("", response_model=StockOut)
 def get_stock(
     search: Optional[str] = None,
@@ -97,8 +97,8 @@ def get_stock(
 
 @stock_router.get("/export")
 def export_stock(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    """CSV with a BOM and ';' separators, which Excel opens directly with
-    Albanian characters intact."""
+    """this function exports a csv with a bom and ';' separators, which excel opens
+    directly with albanian characters intact"""
     locations = _active_locations(db)
     buf = io.StringIO()
     writer = csv.writer(buf, delimiter=";")
@@ -126,7 +126,7 @@ def adjust_stock(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Correct a warehouse's quantity to a physical count."""
+    """this function corrects a warehouse's quantity to a physical count"""
     if current_user.role == "viewer":
         raise HTTPException(status_code=403, detail="Read-only users cannot change stock")
     require_location_access(current_user, payload.location_id, "You don't have access to this warehouse")
@@ -142,7 +142,7 @@ def adjust_stock(
     return {"changed": movement is not None, "reference": reference if movement else None}
 
 
-# ─── Materials ────────────────────────────────────────────────────────────────
+#this section manages materials
 @router.get("", response_model=list[ProductSummary])
 def search_products(
     search: Optional[str] = None,
@@ -150,7 +150,7 @@ def search_products(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Lightweight list for pickers (invoice review, transfers)."""
+    """this function returns a light list for pickers (invoice review, transfers)"""
     query = db.query(Product).filter(Product.status != "archived")
     if search:
         like = f"%{search}%"
@@ -209,9 +209,9 @@ def get_product(product_id: int, db: Session = Depends(get_db), _: User = Depend
 def update_product(
     product_id: int, payload: ProductWrite, db: Session = Depends(get_db), _: User = Depends(require_admin),
 ):
-    """Quantities are deliberately not editable here: they change only
-    through invoices, transfers and physical-count corrections, so every
-    change has a ledger entry."""
+    """this function edits a material. quantities are not editable here on purpose:
+    they change only through invoices, transfers and physical-count corrections,
+    so every change has a ledger entry"""
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Material not found")
@@ -223,7 +223,7 @@ def update_product(
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 def archive_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    """Archives rather than deletes, so the material's movement history survives."""
+    """this function archives a material instead of deleting it, so its movement history survives"""
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Material not found")

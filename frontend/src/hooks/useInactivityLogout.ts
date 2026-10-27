@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
-const INACTIVITY_MS = 30 * 60 * 1000 // 30 minutes
-const WARNING_MS = 29 * 60 * 1000     // warn at 29 minutes
+const INACTIVITY_MS = 30 * 60 * 1000 //this line logs out after 30 minutes
+const WARNING_MS = 29 * 60 * 1000     //this line warns at 29 minutes
 
 export function useInactivityLogout() {
   const { isAuthenticated, logout } = useAuth()
