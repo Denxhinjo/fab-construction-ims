@@ -21,7 +21,11 @@ from ..config import settings
 
 PDF_MAGIC = b"%PDF"
 IMAGE_MAGIC = (b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n")
-MAX_PAGES = 5
+# A text layer is read in milliseconds, so long e-invoices (items, VAT
+# summary and payment details over a dozen pages) are read whole. OCR takes
+# seconds per page and stops sooner.
+MAX_PAGES = 40
+MAX_OCR_PAGES = 5
 OCR_DPI = 300
 # A page with fewer letters/digits than this in its text layer is a scan
 # (CamScanner adds just its own name, for instance).
@@ -79,10 +83,14 @@ def _read_pdf(data: bytes) -> ReadResult:
     from PIL import Image
 
     ocr_texts = []
+    ocr_pages = 0
     for page, text in zip(pages, texts):
         if sum(c.isalnum() for c in text) >= MIN_TEXT_CHARS:
             ocr_texts.append(text)
             continue
+        if ocr_pages == MAX_OCR_PAGES:
+            break
+        ocr_pages += 1
         pix = page.get_pixmap(dpi=OCR_DPI)
         image = Image.frombytes("RGB" if pix.n < 4 else "RGBA", (pix.width, pix.height), pix.samples)
         ocr_texts.append(_ocr(image))
