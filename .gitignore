@@ -1,4 +1,4 @@
-# Python
+#this section ignores python files
 __pycache__/
 *.py[cod]
 *.pyo
@@ -10,19 +10,19 @@ build/
 venv/
 env/
 
-# Alembic
+#this section ignores alembic files
 backend/alembic/versions/__pycache__/
 
-# Media uploads
+#this section ignores media uploads
 backend/media/
 
-# Node
+#this section ignores node files
 node_modules/
 frontend/dist/
 frontend/.env
 frontend/.env.local
 
-# IDE
+#this section ignores editor settings
 .idea/
 .vscode/
 *.swp
@@ -30,14 +30,14 @@ frontend/.env.local
 .DS_Store
 Thumbs.db
 
-# Docker
+#this section ignores docker files
 .dockerignore
 
-# Test coverage
+#this section ignores test coverage reports
 .coverage
 htmlcov/
 
-# LaTeX build artifacts
+#this section ignores latex build files
 *.aux
 *.log
 *.out
@@ -46,8 +46,8 @@ htmlcov/
 *.tex
 *.synctex.gz
 
-# Dev logs
+#this section ignores dev logs
 frontend/vite-preview.log
 
-# Real supplier invoices used for testing the reader; fixtures in backend/tests are anonymised
+#this section ignores real supplier invoices used for testing, the test fixtures are anonymised
 samples/

@@ -14,7 +14,7 @@ import type { Category, StockOut, StockRow } from '../../types'
 interface Props {
   open: boolean
   onClose: () => void
-  row: StockRow | null  // null = new material
+  row: StockRow | null  //this line is null for a new material
   locations: StockOut['locations']
 }
 

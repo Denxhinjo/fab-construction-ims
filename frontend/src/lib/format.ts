@@ -2,12 +2,12 @@ import i18n from '../i18n'
 import type { StockMovement } from '../types'
 import type { Variant } from '../components/ui/Badge'
 
-// The currency stock is valued in. Albanian supplier invoices are in Lekë.
+//this line sets the currency stock is valued in, albanian supplier invoices are in lekë
 export const APP_CURRENCY: string = import.meta.env.VITE_CURRENCY || 'ALL'
 
 const grouping = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
 
-/** 1055 -> "1,055"; 20.9167 -> "20.92" */
+//this function formats numbers: 1055 -> "1,055", 20.9167 -> "20.92"
 export function fmtNum(value: number | null | undefined, maxFractionDigits = 2): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
   if (maxFractionDigits === 2) return grouping.format(value)
@@ -20,7 +20,7 @@ const SYMBOLS: Record<string, { symbol: string; prefix: boolean }> = {
   ALL: { symbol: 'L', prefix: false },
 }
 
-/** Money with its symbol: "€84,120", "134,308 L". Whole amounts drop the decimals. */
+//this function formats money with its symbol: "€84,120", "134,308 L", whole amounts drop the decimals
 export function fmtMoney(value: number | null | undefined, currency = APP_CURRENCY, decimals?: number): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
   const digits = decimals ?? (Number.isInteger(Math.round(value * 100) / 100) ? 0 : 2)
@@ -38,7 +38,7 @@ export function fmtDate(value: string | null | undefined): string {
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
 }
 
-/** "Today 09:42", "Yesterday 16:30", or "22.10" for older timestamps. */
+//this function formats a time as "Today 09:42", "Yesterday 16:30", or "22.10" for older ones
 export function fmtWhen(value: string | null | undefined): string {
   if (!value) return '—'
   const d = new Date(value)
@@ -51,11 +51,11 @@ export function fmtWhen(value: string | null | undefined): string {
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-// Spelled out here because browsers ship incomplete Albanian locale data.
+//these names are spelled out here because browsers ship incomplete albanian locale data
 const SQ_DAYS = ['e diel', 'e hënë', 'e martë', 'e mërkurë', 'e enjte', 'e premte', 'e shtunë']
 const SQ_MONTHS = ['janar', 'shkurt', 'mars', 'prill', 'maj', 'qershor', 'korrik', 'gusht', 'shtator', 'tetor', 'nëntor', 'dhjetor']
 
-/** "E hënë, 26 tetor" / "Monday 26 October" */
+//this function formats today as "E hënë, 26 tetor" / "Monday 26 October"
 export function fmtLongToday(): string {
   const d = new Date()
   if (i18n.language === 'sq') return `${SQ_DAYS[d.getDay()]}, ${d.getDate()} ${SQ_MONTHS[d.getMonth()]}`
@@ -67,7 +67,7 @@ export function fmtBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-// ─── Movements ────────────────────────────────────────────────────────────────
+//this section formats stock movements
 type MovementKind = 'in' | 'transfer' | 'adjustment' | 'out'
 
 const KIND_BY_TYPE: Record<string, MovementKind> = {
@@ -98,13 +98,13 @@ export function movementBadge(m: StockMovement): { label: string; variant: Varia
   return { label: i18n.t(`movement.${kind}`), variant: KIND_VARIANT[kind] }
 }
 
-/** Signed quantity for a movement: adjustments and outgoing stock show a minus. */
+//this function signs a movement's quantity: adjustments and outgoing stock show a minus
 export function movementQty(m: StockMovement): string {
   const negative = m.movement_type === 'Adjustment Out' || m.movement_type === 'Stock Out'
   return `${negative ? '−' : ''}${fmtNum(m.quantity)}`
 }
 
-/** "Beton-Mix → Depo Qendrore", "Depo Qendrore → Depo Veri", "Depo Jug · physical count" */
+//this function describes a movement's route: "Beton-Mix → Depo Qendrore", "Depo Qendrore → Depo Veri", "Depo Jug · physical count"
 export function movementRoute(m: StockMovement): string {
   const src = m.source_location?.name
   const dst = m.destination_location?.name

@@ -51,9 +51,9 @@ def create_user(
 
 @router.get("/me/locations", response_model=List[LocationOut])
 def get_my_locations(current_user: User = Depends(get_current_user)):
-    """The warehouses/locations the current user is allowed to create or edit
-    products in. Meaningless for admins, who aren't restricted by this table
-    at all -- included mainly for regular users' client-side location pickers.
+    """this function returns the warehouses the current user may create or edit
+    products in. it means nothing for admins, who aren't limited by this table,
+    and is mainly for regular users' location pickers
     """
     return current_user.permitted_locations
 
@@ -77,9 +77,9 @@ def set_user_locations(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    """Replaces the full set of permitted locations for a user (not an
-    incremental add/remove) -- simplest semantics for an admin-facing
-    "these are exactly this user's warehouses" screen.
+    """this function replaces the full set of a user's permitted warehouses (not an
+    add/remove), the simplest meaning for an admin screen that says "these are
+    exactly this user's warehouses"
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -129,7 +129,7 @@ def update_user(
     if "password" in update_data:
         update_data["hashed_password"] = pwd_context.hash(update_data.pop("password"))
 
-    # Only admins can change roles
+    #this line lets only admins change roles
     if "role" in update_data and current_user.role != "admin":
         del update_data["role"]
 

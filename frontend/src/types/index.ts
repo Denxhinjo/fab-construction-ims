@@ -1,4 +1,4 @@
-// Auth
+//these types are for auth
 export interface AuthToken {
   access_token: string
   token_type: string
@@ -8,7 +8,7 @@ export interface AuthToken {
   email: string
 }
 
-// User
+//these types are for users
 export type UserRole =
   | 'admin' | 'user' | 'procurement' | 'warehouse_manager'
   | 'warehouse_worker' | 'project_manager' | 'finance' | 'viewer'
@@ -51,7 +51,7 @@ export interface UserUpdate {
   password?: string
 }
 
-// Category
+//these types are for categories
 export interface Category {
   id: number
   name: string
@@ -62,7 +62,7 @@ export interface Category {
   updated_at: string
 }
 
-// Location
+//these types are for locations
 export interface Location {
   id: number
   name: string
@@ -84,7 +84,7 @@ export interface LocationSummary {
   city?: string
 }
 
-// Supplier
+//these types are for suppliers
 export interface Supplier {
   id: number
   name: string
@@ -103,7 +103,7 @@ export interface Supplier {
   updated_at: string
 }
 
-// Materials
+//these types are for materials
 export interface ProductSummary {
   id: number
   name: string
@@ -136,7 +136,7 @@ export interface ProductWrite {
   location_mins: Record<number, number | null>
 }
 
-// Stock matrix: one row per material, one cell per warehouse
+//these types are for the stock matrix: one row per material, one cell per warehouse
 export interface StockCell {
   quantity: number
   min: number
@@ -163,7 +163,7 @@ export interface StockOut {
   total_materials: number
 }
 
-// Movements (history)
+//these types are for the movement history
 export interface StockMovement {
   id: number
   product_id: number
@@ -195,7 +195,7 @@ export interface Paginated<T> {
   total_pages: number
 }
 
-// Transfers
+//these types are for transfers
 export type TransferStatus = 'IN_TRANSIT' | 'DISPATCHED' | 'RECEIVED' | 'RECEIVED_PARTIAL' | 'CANCELLED'
 
 export interface TransferItem {
@@ -225,7 +225,7 @@ export interface WarehouseTransfer {
   items: TransferItem[]
 }
 
-// Invoices
+//these types are for invoices
 export type InvoiceStatus = 'review' | 'failed' | 'accepted' | 'rejected'
 export type LineKind = 'stock' | 'extra' | 'skip'
 
@@ -325,7 +325,7 @@ export interface InvoiceUpdate {
   allow_duplicate?: boolean
 }
 
-// Dashboard
+//these types are for the dashboard
 export interface BelowMinItem {
   product_id: number
   product_name: string

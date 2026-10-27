@@ -1,4 +1,4 @@
-"""product: multi-image and price_currency
+"""this migration adds product multi-image and price_currency
 
 Revision ID: b2c4d6e8f0a1
 Revises: 3a8f2c10d4e5

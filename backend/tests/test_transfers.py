@@ -97,6 +97,6 @@ def test_sending_and_receiving_need_warehouse_access(
     assert client.post("/api/transfers", headers=user_headers, json=body).status_code == 403
     grant_location(regular_user, loc_a)
     sent = client.post("/api/transfers", headers=user_headers, json=body).json()
-    # Granted A (the source) but not B (the destination).
+    #this line grants a (the source) but not b (the destination)
     res = client.post(f"/api/transfers/{sent['id']}/receive", headers=user_headers, json={})
     assert res.status_code == 403

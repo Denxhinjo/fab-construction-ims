@@ -3,11 +3,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from .config import settings
 
-# Render/Neon provide postgres:// but SQLAlchemy 2 requires postgresql://
+#this line fixes the url because render/neon give postgres:// but sqlalchemy 2 needs postgresql://
 _db_url = settings.DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Small pool: serverless functions cold-start per invocation, so the
-# connection pooler (e.g. Neon's PgBouncer) handles concurrency, not us.
+#this line keeps the pool small: serverless functions cold-start per request, so the
+#connection pooler (e.g. neon's pgbouncer) handles concurrency, not us
 engine = create_engine(
     _db_url,
     pool_pre_ping=True,
@@ -25,8 +25,8 @@ def get_db():
     try:
         yield db
     except Exception:
-        # A request that fails half-way (e.g. the third row of an invoice
-        # is refused after two were flushed) must leave nothing behind.
+        #this line undoes a request that fails half-way (e.g. the third row of an invoice
+        #is refused after two were flushed) so it leaves nothing behind
         db.rollback()
         raise
     finally:

@@ -1,8 +1,7 @@
 services:
-  # ─── FastAPI Backend ────────────────────────────────────────────────
-  # Docker rather than the native Python runtime: reading scanned invoices
-  # needs the tesseract-ocr system package, installed by backend/Dockerfile.
-  # The frontend stays on Vercel and the database on Neon.
+  #this service is the fastapi backend
+  #this uses docker instead of the python runtime because reading scanned invoices needs tesseract-ocr, installed by backend/Dockerfile
+  #this leaves the frontend on vercel and the database on neon
   - type: web
     name: fab-ims-backend
     runtime: docker
@@ -10,10 +9,10 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /api/health
-    # Migrations run on every deploy, so the database always matches the code.
+    #this runs migrations on every deploy so the database always matches the code
     dockerCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
-      # The Neon connection string; entered in the Render dashboard, never committed.
+      #this is the neon connection string, entered in the render dashboard and never committed
       - key: DATABASE_URL
         sync: false
       - key: SECRET_KEY

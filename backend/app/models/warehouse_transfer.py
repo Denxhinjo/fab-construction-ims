@@ -3,12 +3,12 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
 
-# A transfer is created already dispatched: stock leaves the source warehouse
-# the moment it is sent, and enters the destination when it is received.
-# RECEIVED_PARTIAL closes a transfer whose delivery came up short; the
-# missing quantity is recorded on the items and never enters stock.
-# DRAFT/PENDING/APPROVED/DISPATCHED/CANCELLED are kept only so rows from the
-# previous approval workflow still load.
+#this block describes the transfer statuses. a transfer is created already dispatched:
+#stock leaves the source warehouse the moment it is sent, and enters the destination
+#when it is received. RECEIVED_PARTIAL closes a transfer whose delivery came up short,
+#and the missing quantity is recorded on the items and never enters stock.
+#DRAFT/PENDING/APPROVED/DISPATCHED/CANCELLED are kept only so rows from the
+#previous approval workflow still load
 TRANSFER_STATUSES = [
     "IN_TRANSIT", "RECEIVED", "RECEIVED_PARTIAL",
     "DRAFT", "PENDING", "APPROVED", "DISPATCHED", "CANCELLED",

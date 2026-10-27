@@ -32,27 +32,27 @@ def test_parse_number(token, expected):
 
 
 @pytest.mark.parametrize("fixture", [
-    "scanned_fiscal_invoice_ocr.txt",             # Tesseract 5.3 (Debian, the server image)
-    "scanned_fiscal_invoice_ocr_tesseract55.txt",  # Tesseract 5.5 (Windows), stray dashes between numbers
+    "scanned_fiscal_invoice_ocr.txt",             #this line is tesseract 5.3 output (debian, the server image)
+    "scanned_fiscal_invoice_ocr_tesseract55.txt",  #this line is tesseract 5.5 output (windows), with stray dashes between numbers
 ])
 def test_scanned_fiscal_invoice_from_ocr(fixture):
-    """Real Tesseract output of a phone-scanned Albanian fiscal invoice, with
-    its OCR damage left in (a dropped decimal point, junk before a row, a
-    misread NIPT). Names, tax numbers and fiscal codes are replaced with
-    fictional ones; the layout and numbers are untouched."""
+    """this test uses real tesseract output of a phone-scanned albanian fiscal invoice,
+    with its ocr damage left in (a dropped decimal point, junk before a row, a
+    misread nipt). names, tax numbers and fiscal codes are replaced with
+    fictional ones, the layout and numbers are untouched"""
     inv = parse_invoice((FIXTURES / fixture).read_text(encoding="utf-8"))
 
     assert inv.invoice_number == "523"
     assert inv.invoice_date == date(2026, 10, 8)
     assert inv.supplier_name == "Elektro Drita"
-    assert inv.supplier_tax_number == "M01234567E"  # OCR read "MO1234567..."
+    assert inv.supplier_tax_number == "M01234567E"  #this line checks the nipt ocr read as "MO1234567..."
     assert inv.currency == "ALL"
     assert (inv.subtotal, inv.vat_total, inv.total) == (111923.33, 22384.67, 134308.0)
     assert inv.issues == []
 
     assert [(r.quantity, r.unit_price, r.net_amount, r.gross_amount) for r in inv.lines] == [
         (800, 20.9167, 16733.33, 20080),
-        (600, 116.9833, 70190, 84228),   # printed price OCR'd as "1169833"
+        (600, 116.9833, 70190, 84228),   #this line is the printed price ocr read as "1169833"
         (50, 500, 25000, 30000),
     ]
     assert [r.unit for r in inv.lines] == ["m", "m", "copë"]
@@ -83,14 +83,14 @@ def test_digital_invoice_with_unit_before_quantity():
     inv = parse_invoice(DIGITAL_SQ)
     assert inv.invoice_number == "FAT-2026-0421"
     assert inv.invoice_date == date(2026, 10, 26)
-    assert inv.supplier_tax_number == "K12345678L"  # the seller's, not the buyer's
+    assert inv.supplier_tax_number == "K12345678L"  #this line checks it is the seller's nipt, not the buyer's
     assert inv.currency == "EUR"
     assert (inv.subtotal, inv.vat_total, inv.total) == (2498.0, 449.64, 2947.64)
     assert len(inv.lines) == 4
     cement = inv.lines[0]
     assert (cement.quantity, cement.unit_price, cement.net_amount) == (200, 6.35, 1270)
     assert cement.description == "Cimento CEM II/B-M 42.5R 25kg"
-    assert inv.lines[3].kind == "extra"  # transport is a cost, not stock
+    assert inv.lines[3].kind == "extra"  #this line checks transport is a cost, not stock
 
 
 ENGLISH = """
@@ -155,39 +155,39 @@ TOTALI 342.00"""
 
 
 def test_albanian_einvoice():
-    """Text layer of a real e-invoice from the central invoicing platform
-    (Faturë Elektronike), 11 pages: items, VAT summary, totals in EUR and
-    lek, payment details, QR codes, then every item repeated in the detailed
-    specification. Names, tax numbers and fiscal codes are fictional and the
-    bank accounts are removed; layout and amounts are untouched."""
+    """this test uses the text layer of a real e-invoice from the central invoicing
+    platform (Faturë Elektronike), 11 pages: items, vat summary, totals in eur and
+    lek, payment details, qr codes, then every item repeated in the detailed
+    specification. names, tax numbers and fiscal codes are fictional and the
+    bank accounts are removed, layout and amounts are untouched"""
     inv = parse_invoice((FIXTURES / "einvoice_text_layer.txt").read_text(encoding="utf-8"))
 
     assert inv.invoice_number == "6196/2025"
     assert inv.invoice_date == date(2025, 11, 11)
     assert inv.supplier_name == "Elektro Drita sh.p.k"
-    assert inv.supplier_tax_number == "M01234567E"  # the seller's, not the buyer's
-    assert inv.currency == "EUR"                    # despite the "TOTAL NË LEK" block
+    assert inv.supplier_tax_number == "M01234567E"  #this line checks it is the seller's nipt, not the buyer's
+    assert inv.currency == "EUR"                    #this line checks eur wins despite the "TOTAL NË LEK" block
     assert inv.exchange_rate == 96.65
     assert (inv.subtotal, inv.vat_total, inv.total) == (953.15, 190.68, 1143.83)
     assert inv.issues == []
 
-    assert len(inv.lines) == 18  # the detailed specification is not counted again
+    assert len(inv.lines) == 18  #this line checks the detailed specification is not counted again
     assert all(r.confidence == "ok" and r.kind == "stock" for r in inv.lines)
     cable = inv.lines[0]
     assert cable.description == "KABELL FLEX 5X4 ME VESHJE GOME FRO-HP SIGN"
     assert (cable.quantity, cable.unit, cable.net_amount, cable.vat_amount, cable.gross_amount) == (
         200, "m", 421.08, 84.22, 505.30,
     )
-    assert cable.unit_price == 2.1054  # net / quantity; the invoice prints 2,11
+    assert cable.unit_price == 2.1054  #this line checks the price is net / quantity, the invoice prints 2,11
     lugs = inv.lines[9]
     assert lugs.description == "PUNTOLINA TE IZOLUARA 1.5MM2 L=8MM"
-    assert (lugs.quantity, lugs.unit, lugs.unit_price) == (1000, "copë", 0.006)  # printed 0,01
+    assert (lugs.quantity, lugs.unit, lugs.unit_price) == (1000, "copë", 0.006)  #this line checks the exact price, the invoice prints 0,01
     assert round(sum(r.net_amount for r in inv.lines), 2) == inv.subtotal
 
 
 def test_einvoice_row_that_does_not_add_up_needs_checking():
     text = (FIXTURES / "einvoice_text_layer.txt").read_text(encoding="utf-8")
-    text = text.replace("200.00 505,30 421,08", "200.00 505,30 391,08", 1)  # net misprinted
+    text = text.replace("200.00 505,30 421,08", "200.00 505,30 391,08", 1)  #this line misprints the net on purpose
     cable = parse_invoice(text).lines[0]
     assert ROW_ARITHMETIC in cable.issues
 

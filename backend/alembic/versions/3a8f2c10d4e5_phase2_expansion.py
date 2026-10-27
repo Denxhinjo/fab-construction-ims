@@ -1,4 +1,4 @@
-"""Phase 2 expansion: projects, transfers, purchase orders, product stock, audit log
+"""this migration adds projects, transfers, purchase orders, product stock and the audit log (phase 2)
 
 Revision ID: 3a8f2c10d4e5
 Revises: 1f740fff8426
@@ -15,7 +15,7 @@ depends_on = None
 
 
 def upgrade():
-    # ── projects ────────────────────────────────────────────────────────────────
+    #this block creates the projects table
     op.create_table(
         "projects",
         sa.Column("id", sa.Integer, primary_key=True, index=True),
@@ -36,7 +36,7 @@ def upgrade():
     )
     op.create_index("ix_projects_code", "projects", ["code"], unique=True)
 
-    # ── warehouse_transfers ──────────────────────────────────────────────────────
+    #this block creates the warehouse_transfers table
     op.create_table(
         "warehouse_transfers",
         sa.Column("id", sa.Integer, primary_key=True, index=True),
@@ -58,7 +58,7 @@ def upgrade():
     )
     op.create_index("ix_warehouse_transfers_reference", "warehouse_transfers", ["reference"], unique=True)
 
-    # ── warehouse_transfer_items ─────────────────────────────────────────────────
+    #this block creates the warehouse_transfer_items table
     op.create_table(
         "warehouse_transfer_items",
         sa.Column("id", sa.Integer, primary_key=True, index=True),
@@ -69,7 +69,7 @@ def upgrade():
         sa.Column("notes", sa.String(500), nullable=True),
     )
 
-    # ── purchase_orders ──────────────────────────────────────────────────────────
+    #this block creates the purchase_orders table
     op.create_table(
         "purchase_orders",
         sa.Column("id", sa.Integer, primary_key=True, index=True),
@@ -91,7 +91,7 @@ def upgrade():
     )
     op.create_index("ix_purchase_orders_po_number", "purchase_orders", ["po_number"], unique=True)
 
-    # ── purchase_order_items ─────────────────────────────────────────────────────
+    #this block creates the purchase_order_items table
     op.create_table(
         "purchase_order_items",
         sa.Column("id", sa.Integer, primary_key=True, index=True),
@@ -104,7 +104,7 @@ def upgrade():
         sa.Column("unit", sa.String(50), nullable=False, server_default="pcs"),
     )
 
-    # ── product_stock ────────────────────────────────────────────────────────────
+    #this block creates the product_stock table
     op.create_table(
         "product_stock",
         sa.Column("id", sa.Integer, primary_key=True, index=True),
@@ -116,7 +116,7 @@ def upgrade():
         sa.UniqueConstraint("product_id", "location_id", name="uq_product_location"),
     )
 
-    # ── audit_log ────────────────────────────────────────────────────────────────
+    #this block creates the audit_log table
     op.create_table(
         "audit_log",
         sa.Column("id", sa.Integer, primary_key=True, index=True),
@@ -129,7 +129,7 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), index=True),
     )
 
-    # ── alter stock_movements: add new context columns ───────────────────────────
+    #this block adds new context columns to stock_movements
     op.alter_column("stock_movements", "movement_type", type_=sa.String(50), existing_nullable=False)
     op.add_column("stock_movements", sa.Column("source_location_id", sa.Integer, sa.ForeignKey("locations.id"), nullable=True))
     op.add_column("stock_movements", sa.Column("destination_location_id", sa.Integer, sa.ForeignKey("locations.id"), nullable=True))
@@ -139,7 +139,7 @@ def upgrade():
     op.add_column("stock_movements", sa.Column("approved_by_id", sa.Integer, sa.ForeignKey("users.id"), nullable=True))
     op.add_column("stock_movements", sa.Column("received_by_id", sa.Integer, sa.ForeignKey("users.id"), nullable=True))
 
-    # ── alter products: add new fields ───────────────────────────────────────────
+    #this block adds new fields to products
     op.add_column("products", sa.Column("brand", sa.String(100), nullable=True))
     op.add_column("products", sa.Column("barcode", sa.String(100), nullable=True))
     op.add_column("products", sa.Column("reorder_quantity", sa.Float, nullable=True))
@@ -147,15 +147,15 @@ def upgrade():
     op.add_column("products", sa.Column("avg_cost", sa.Float, nullable=True))
     op.create_index("ix_products_barcode", "products", ["barcode"])
 
-    # ── alter suppliers: add new fields ─────────────────────────────────────────
+    #this block adds new fields to suppliers
     op.add_column("suppliers", sa.Column("tax_number", sa.String(50), nullable=True))
     op.add_column("suppliers", sa.Column("payment_terms", sa.String(100), nullable=True))
     op.add_column("suppliers", sa.Column("lead_time_days", sa.Integer, nullable=True))
 
-    # ── alter users: widen role column for new role values ───────────────────────
+    #this block widens the users role column for the new role values
     op.alter_column("users", "role", type_=sa.String(30), existing_nullable=False)
 
-    # ── seed product_stock from existing products ────────────────────────────────
+    #this block fills product_stock from the existing products
     op.execute(
         """
         INSERT INTO product_stock (product_id, location_id, quantity, reserved_quantity)

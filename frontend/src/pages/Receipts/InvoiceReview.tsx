@@ -16,7 +16,7 @@ import type { Invoice, InvoiceLine, InvoiceUpdate, LineKind, Location, ProductSu
 import { InvoiceStatusBadge } from './InvoiceStatusBadge'
 import { COMMON_UNITS } from '../../lib/units'
 
-// Row issues that need a person; the rest are informational.
+//this set holds the row issues that need a person, the rest are only informational
 const BLOCKING = new Set(['arithmetic_mismatch', 'price_derived', 'missing_numbers', 'unit_unknown'])
 
 interface Row {
@@ -177,7 +177,7 @@ export default function InvoiceReview() {
   const firstUnchecked = stockRows.find((r) => r.needsCheck && !r.checked)
   const missingName = stockRows.find((r) => !r.product && !r.new_name.trim())
   const missingQty = stockRows.find((r) => !r.quantity || r.quantity <= 0)
-  // Stock is valued in lek; other currencies need the rate to convert costs.
+  //this line checks the currency, since stock is valued in lek and other currencies need a rate to convert costs
   const foreign = header.currency !== 'ALL'
   const rateValue = numberOrNull(header.rate)
 

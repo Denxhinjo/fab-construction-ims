@@ -29,7 +29,7 @@ def get_current_user(
     user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None or not user.is_active:
         raise credentials_exception
-    # Credential fingerprint check: password changes immediately invalidate old tokens
+    #this line checks the credential fingerprint so a password change invalidates old tokens at once
     token_cf = payload.get("cf")
     if token_cf is not None and token_cf != user.hashed_password[:8]:
         raise credentials_exception
@@ -46,7 +46,7 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 def require_role(*roles: str):
-    """Factory that returns a dependency requiring the user to have one of the given roles."""
+    """this function builds a dependency that requires the user to have one of the given roles"""
     def _dep(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in roles:
             raise HTTPException(

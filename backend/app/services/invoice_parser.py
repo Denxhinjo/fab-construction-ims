@@ -1,20 +1,17 @@
 """
-Rule-based reader for supplier invoices.
+this file reads the text of a supplier invoice and turns it into the invoice
+header plus one row per item, using fixed rules and no ai
 
-Input is plain text, one physical line of the document per line, from either
-a PDF's text layer or OCR (see invoice_reader). Output is the invoice header
-plus one ParsedLine per item row.
+the text comes from invoice_reader, one line of the document per line, either
+from the pdf text layer or from ocr. every value comes from a label we know
+(albanian or english) or from where a number sits in an item row, and every
+row is checked with arithmetic:
 
-No guessing model is involved. Every value comes from a label we recognise
-(Albanian or English) or from the position of a number in an item row, and
-every row is checked with arithmetic:
+    quantity x unit price ~= net        net + vat ~= gross
 
-    quantity x unit price ~= net        net + VAT ~= gross
-
-Those checks are also what repairs OCR damage: a unit price whose decimal
-point was lost ("1169833" for 116.9833) is rebuilt from net / quantity, and
-a row only counts as read with certainty ("ok") when its numbers agree.
-Anything that doesn't add up is marked "check" for a person to look at.
+the same checks repair ocr damage, for example a price that lost its decimal
+point ("1169833" for 116.9833) is rebuilt from net / quantity. a row is only
+"ok" when its numbers agree, anything else is marked "check" for a person
 """
 from __future__ import annotations
 
@@ -25,28 +22,28 @@ from datetime import date
 from itertools import combinations
 from typing import Optional
 
-# ─── Issue codes ──────────────────────────────────────────────────────────────
-# Row issues that need a person (confidence becomes "check")
-ROW_ARITHMETIC = "arithmetic_mismatch"     # qty x price != net, and nothing could repair it
-ROW_PRICE_DERIVED = "price_derived"        # price unreadable, computed as net / qty
-ROW_MISSING_NUMBERS = "missing_numbers"    # fewer numbers than a row needs
-ROW_UNIT_UNKNOWN = "unit_unknown"          # unit missing or not one we know
-# Row notes that don't need a person
-ROW_PRICE_DECIMAL = "price_decimal_restored"  # same digits as printed, decimal point put back
+#this section lists the issue codes the parser can report
+#these row issues need a person, so the row confidence becomes "check"
+ROW_ARITHMETIC = "arithmetic_mismatch"     #this line means qty x price is not the net and could not be repaired
+ROW_PRICE_DERIVED = "price_derived"        #this line means the price was unreadable and was computed as net / qty
+ROW_MISSING_NUMBERS = "missing_numbers"    #this line means the row has fewer numbers than it needs
+ROW_UNIT_UNKNOWN = "unit_unknown"          #this line means the unit is missing or unknown
+#this line starts the row notes that do not need a person
+ROW_PRICE_DECIMAL = "price_decimal_restored"  #this line means the printed digits were kept and the decimal point put back
 
-# Invoice-level issues
+#this line starts the issues about the whole invoice
 INV_NO_ROWS = "no_rows"
 INV_NO_NUMBER = "no_invoice_number"
 INV_NO_DATE = "no_date"
 INV_NO_SUPPLIER = "no_supplier"
-INV_TOTALS_COMPUTED = "totals_computed"    # totals not found; summed from the rows
-INV_TOTALS_MISMATCH = "totals_mismatch"    # rows don't add up to the printed totals
-INV_NO_RATE = "no_exchange_rate"           # foreign currency, rate to lek not found
+INV_TOTALS_COMPUTED = "totals_computed"    #this line means the totals were missing so they were summed from the rows
+INV_TOTALS_MISMATCH = "totals_mismatch"    #this line means the rows do not add up to the printed totals
+INV_NO_RATE = "no_exchange_rate"           #this line means the invoice is not in lek and no exchange rate was found
 
 ROW_BLOCKING = {ROW_ARITHMETIC, ROW_PRICE_DERIVED, ROW_MISSING_NUMBERS, ROW_UNIT_UNKNOWN}
 
-# ─── Vocabulary ───────────────────────────────────────────────────────────────
-# Unit spellings seen on Albanian and English invoices -> the unit we store.
+#this section holds the words the parser recognises
+#this dictionary maps unit spellings on albanian and english invoices to the unit we store
 UNITS = {
     "m": "m", "ml": "m", "mt": "m", "metra": "m", "meter": "m", "metre": "m",
     "m2": "m²", "m²": "m²", "mq": "m²", "m3": "m³", "m³": "m³", "mc": "m³",
@@ -63,12 +60,12 @@ UNITS = {
     "shufer": "shufër", "shufra": "shufër", "bar": "shufër",
     "pllake": "pllakë", "pllaka": "pllakë", "sheet": "pllakë",
     "pal": "paletë", "palete": "paletë", "pallet": "paletë",
-    # UN/ECE codes the e-invoice platform may print instead of a name
+    #these lines map the un/ece unit codes the e-invoice platform may print instead of a name
     "h87": "copë", "c62": "copë", "xpp": "copë", "mtr": "m", "mtk": "m²", "mtq": "m³",
     "kgm": "kg", "grm": "g", "tne": "ton", "ltr": "l", "pr": "palë",
 }
 
-# Descriptions that are costs on the invoice but not stock.
+#this tuple lists words that mark a row as a cost on the invoice and not stock
 EXTRA_COST_WORDS = (
     "transport", "sherbim", "service", "delivery", "dergese", "freight", "shipping",
     "montim", "instalim", "installation", "qira", "rent", "kosto shtese",
@@ -86,7 +83,7 @@ CURRENCY_PATTERNS = (
 VAT_RATES = (0.20, 0.10, 0.06, 0.0)
 
 
-# ─── Results ──────────────────────────────────────────────────────────────────
+#this section holds the result types the parser returns
 @dataclass
 class ParsedLine:
     line_no: int
@@ -114,7 +111,7 @@ class ParsedInvoice:
     supplier_name: Optional[str] = None
     supplier_tax_number: Optional[str] = None
     currency: str = "ALL"
-    exchange_rate: Optional[float] = None  # lek per unit of currency; None for ALL
+    exchange_rate: Optional[float] = None  #this line keeps the lek per unit of currency, none when the invoice is in lek
     subtotal: Optional[float] = None
     vat_total: Optional[float] = None
     total: Optional[float] = None
@@ -122,36 +119,36 @@ class ParsedInvoice:
     issues: list[str] = field(default_factory=list)
 
 
-# ─── Text helpers ─────────────────────────────────────────────────────────────
+#this section holds small text helpers
 def fold(text: str) -> str:
-    """Lowercase and strip accents so 'Përshkrimi', 'PERSHKRIMI' and the
-    OCR'd 'Pershkrimi' compare equal (ë->e, ç->c)."""
+    """this function lowercases text and strips accents so 'Përshkrimi', 'PERSHKRIMI'
+    and the ocr'd 'Pershkrimi' compare equal (ë->e, ç->c)"""
     text = unicodedata.normalize("NFKD", text)
     text = "".join(c for c in text if not unicodedata.combining(c))
     return text.lower()
 
 
 def _close(a: float, b: float) -> bool:
-    """Equal within rounding: invoice software rounds each column separately."""
+    """this function says if two amounts are equal within rounding, since invoice software rounds each column on its own"""
     return abs(a - b) <= max(0.05, abs(b) * 0.004)
 
 
-# ─── Numbers ──────────────────────────────────────────────────────────────────
+#this section reads numbers
 _NUM_TOKEN = re.compile(r"^-?[\d][\d.,]*$")
 
 
 def _clean_token(tok: str) -> str:
-    # OCR leaves column-rule debris on numbers: "800:", "16,733.33.", "|20,080"
+    #this line strips the column-rule debris ocr leaves on numbers: "800:", "16,733.33.", "|20,080"
     return tok.strip(" :;|'\"“”‘’`=_()[]{}")
 
 
 def parse_number(tok: str) -> Optional[float]:
-    """Parse a number in either '16,733.33' or '16.733,33' style.
+    """this function reads a number written as '16,733.33' or '16.733,33'
 
-    A lone separator followed by exactly three digits is read as a
-    thousands separator ('1,450' -> 1450, '70.190' -> 70190) because
-    invoice amounts are far more often whole thousands than 3-decimal
-    values; row arithmetic catches the rare exception."""
+    a lone separator followed by exactly three digits is read as a thousands
+    separator ('1,450' -> 1450, '70.190' -> 70190) because invoice amounts are
+    far more often whole thousands than 3-decimal values, and row arithmetic
+    catches the rare exception"""
     tok = _clean_token(tok).rstrip(".,")
     if not tok or not _NUM_TOKEN.match(tok):
         return None
@@ -180,25 +177,25 @@ def _digits(tok: str) -> str:
     return re.sub(r"\D", "", tok)
 
 
-# ─── Item rows ────────────────────────────────────────────────────────────────
+#this section reads the item rows
 def _is_unit(tok: str) -> bool:
     return fold(_clean_token(tok)).rstrip(".") in UNITS
 
 
 def _split_row(line: str) -> tuple[list[str], list[tuple[str, float]], Optional[str]]:
-    """Split a row into its leading words, the run of numbers at its end, and
-    a unit printed inside that run ("200 thes 6.35 1,270.00": quantity, unit,
-    price, amount). A unit is only taken from inside the run while at most
-    four numbers follow it; on fiscal invoices the unit comes before all five
-    amount columns and is left for _parse_row to pick up."""
-    # Column rules come out of OCR as stray punctuation ("—", "-", "\").
-    # A lone "|" is kept: it is usually a misread "I" in the description.
+    """this function splits a row into its leading words, the run of numbers at
+    its end, and a unit printed inside that run ("200 thes 6.35 1,270.00":
+    quantity, unit, price, amount). a unit is only taken from inside the run
+    while at most four numbers follow it, because on fiscal invoices the unit
+    comes before all five amount columns and _parse_row picks it up"""
+    #this line drops column rules that ocr turns into stray punctuation ("—", "-", "\")
+    #it keeps a lone "|" because that is usually a misread "I" in the description
     tokens = [t for t in line.split() if t == "|" or any(c.isalnum() for c in t)]
     numbers: list[tuple[str, float]] = []
     unit = None
     while tokens:
         tok = tokens[-1]
-        if tok.endswith("%"):  # a VAT-rate column; the rate is re-derived from amounts
+        if tok.endswith("%"):  #this line skips the vat-rate column because the rate is worked out from the amounts
             tokens.pop()
             continue
         value = parse_number(tok)
@@ -215,10 +212,10 @@ def _split_row(line: str) -> tuple[list[str], list[tuple[str, float]], Optional[
 
 
 def _solve_amounts(numbers: list[tuple[str, float]], row: ParsedLine) -> int:
-    """Assign quantity / price / net / VAT / gross from the numbers at the end
-    of a row, preferring an assignment where the arithmetic holds. Returns
-    the index of the number used as quantity; numbers before it belong to
-    the description."""
+    """this function assigns quantity / price / net / vat / gross from the numbers
+    at the end of a row, preferring an assignment where the arithmetic holds.
+    it returns the index of the number used as quantity, the numbers before it
+    belong to the description"""
     values = [v for _, v in numbers]
 
     def tail_after(i: int) -> None:
@@ -233,7 +230,7 @@ def _solve_amounts(numbers: list[tuple[str, float]], row: ParsedLine) -> int:
                     row.vat_amount = round(rest[-1] - net, 2)
                     break
 
-    # 1. Any in-order triple with qty x price == net.
+    #this block looks for any in-order triple where qty x price == net
     for qi, pi, ni in combinations(range(len(values)), 3):
         q, p, n = values[qi], values[pi], values[ni]
         if q > 0 and p > 0 and _close(q * p, n):
@@ -241,8 +238,8 @@ def _solve_amounts(numbers: list[tuple[str, float]], row: ParsedLine) -> int:
             tail_after(ni)
             return qi
 
-    # 2. Price unreadable: find net + VAT == gross, take the first number as
-    #    quantity and rebuild the price from net / quantity.
+    #this block handles an unreadable price: it finds net + vat == gross, takes the
+    #first number as quantity and rebuilds the price from net / quantity
     for i in range(1, len(values) - 2):
         n, v, g = values[i], values[i + 1], values[i + 2]
         if n > 0 and _close(n + v, g):
@@ -261,7 +258,7 @@ def _solve_amounts(numbers: list[tuple[str, float]], row: ParsedLine) -> int:
                 row.issues.append(ROW_PRICE_DERIVED)
             return 0
 
-    # 3. Nothing adds up: fall back to column positions and ask a person.
+    #this block runs when nothing adds up: it falls back to column positions and asks a person
     if len(values) >= 3:
         row.quantity, row.unit_price, row.net_amount = values[0], values[1], values[2]
         if len(values) >= 5:
@@ -277,7 +274,7 @@ def _solve_amounts(numbers: list[tuple[str, float]], row: ParsedLine) -> int:
 
 
 _ROW_NO = re.compile(r"^\d{1,3}[.)\-]?$")
-_ROW_NO_JOINED = re.compile(r"^(\d{1,3})[.\-](\S+)$")   # "3-A125"
+_ROW_NO_JOINED = re.compile(r"^(\d{1,3})[.\-](\S+)$")   #this line matches a row number glued to the code, like "3-A125"
 _CODE = re.compile(r"^(?=.*\d)[A-Za-z0-9][A-Za-z0-9\-./]{2,}$")
 
 
@@ -288,7 +285,7 @@ def _parse_row(text: str, line_no: int, has_code_column: bool) -> Optional[Parse
     if not any(ch.isalpha() for ch in " ".join(words)):
         return None
 
-    # Leading row number, possibly glued to the code ("3-A125").
+    #this line removes the leading row number, which may be glued to the code ("3-A125")
     joined = _ROW_NO_JOINED.match(words[0])
     if joined and has_code_column:
         words = [joined.group(2)] + words[1:]
@@ -307,10 +304,10 @@ def _parse_row(text: str, line_no: int, has_code_column: bool) -> Optional[Parse
     row = ParsedLine(line_no=line_no, description="", code=code, raw_unit=raw_unit)
     row.unit = UNITS.get(fold(raw_unit)) if raw_unit else None
     first = _solve_amounts(numbers, row)
-    # Numbers before the quantity were part of the description ("Tub PVC 110").
+    #this line puts numbers before the quantity back into the description ("Tub PVC 110")
     words = words + [tok for tok, _ in numbers[:first]]
 
-    # A pipe standing alone between words is OCR's reading of "I" or "l".
+    #this line turns a pipe standing alone between words back into the "I" or "l" ocr misread
     row.description = " ".join("I" if w == "|" else _clean_token(w) or w for w in words).strip(" -")
 
     if any(word in fold(row.description) for word in EXTRA_COST_WORDS):
@@ -321,14 +318,14 @@ def _parse_row(text: str, line_no: int, has_code_column: bool) -> Optional[Parse
 
 
 def _find_table(lines: list[str]) -> tuple[int, int, bool]:
-    """Return (first row index, end index, has a code column)."""
+    """this function returns the first row index, the end index and whether there is a code column"""
     start, has_code = 0, False
     for i, line in enumerate(lines):
         f = fold(line)
         if sum(word in f for word in TABLE_HEADER_WORDS) >= 2:
             start = i + 1
             has_code = bool(re.search(r"\bkod|\bcode|\bsku|\bart", f))
-            # Column titles often wrap onto a second line ("matje", "TVSH").
+            #this line skips a second header line, since column titles often wrap ("matje", "TVSH")
             if start < len(lines) and not _split_row(lines[start])[1]:
                 start += 1
             break
@@ -349,25 +346,25 @@ def parse_rows(lines: list[str]) -> list[ParsedLine]:
         if row is not None:
             rows.append(row)
         elif rows and not _split_row(line)[1]:
-            # A description that wrapped onto the next line.
+            #this block adds a description that wrapped onto the next line
             extra = line.strip()
             if 3 <= len(extra) <= 60 and sum(c.isalpha() for c in extra) >= 3:
                 rows[-1].description = f"{rows[-1].description} {extra}"
     return rows
 
 
-# ─── Header fields ────────────────────────────────────────────────────────────
+#this section reads the header fields
 _DATE_PATTERNS = (
     re.compile(r"\b(\d{1,2})[./\-](\d{1,2})[./\-](\d{4})\b"),
     re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b"),
-    # OCR reading '/' as '1': "0811012026" -> 08/10/2026
+    #this line handles ocr reading '/' as '1': "0811012026" -> 08/10/2026
     re.compile(r"\b(\d{2})[1lI|](\d{2})[1lI|](\d{4})\b"),
 )
 
 
 def _to_date(match: re.Match) -> Optional[date]:
     a, b, c = (int(g) for g in match.groups())
-    if a > 1900:  # ISO
+    if a > 1900:  #this line detects an iso date
         y, m, d = a, b, c
     else:
         d, m, y = a, b, c
@@ -387,8 +384,8 @@ def _find_date(text: str) -> Optional[date]:
     return None
 
 
-# Most to least trustworthy: the fiscal issue timestamp is printed by the tax
-# system in a fixed format; a bare "Data"/"Date" may sit next to other dates.
+#this tuple lists date labels from most to least trustworthy: the fiscal issue time is
+#printed by the tax system in a fixed format, a bare "Data"/"Date" may sit next to other dates
 _DATE_LABELS = (
     r"data\s+dhe\s+ora\s+e\s+leshimit",
     r"data\s+e\s+fatur",
@@ -418,7 +415,7 @@ _NUMBER_LABELS = (
     r"numri\s+i\s+fatur[ea]s",
     r"fatur[ea]\s*nr\.?",
     r"invoice\s*(?:no|nr|number|#)\.?",
-    # A bare "Nr." whose value is itself a prefixed number: "Nr. FAT-2026-0421"
+    #this line matches a bare "Nr." whose value is itself a prefixed number: "Nr. FAT-2026-0421"
     r"^\s*nr\.?\s*(?=[a-z]{2,5}[-/]?\d)",
 )
 _INVOICE_NO = re.compile(r"[:#.\s]*([A-Z0-9][A-Z0-9\-/.]*\d[A-Z0-9\-/]*|\d+)", re.IGNORECASE)
@@ -436,11 +433,11 @@ def parse_invoice_number(lines: list[str]) -> Optional[str]:
     return None
 
 
-# Prefix matches on purpose: OCR glues words ("Emrii Bleresit") and the
-# Albanian forms inflect (shitesi / shitesit).
+#these labels match on a prefix on purpose: ocr glues words ("Emrii Bleresit")
+#and the albanian forms inflect (shitesi / shitesit)
 _SELLER_LABELS = (r"emri\s*i\s*shitesit", r"\bshites\w*", r"\bseller\b", r"\bsupplier\b", r"\bfurnizues\w*", r"\bvendor\b", r"\bfrom\s*:")
 _BUYER_LABELS = (r"emri\s*i\s*bleresit", r"\bbleres\w*", r"\bbuyer\b", r"\bklient\w*", r"\bbill\s+to\b", r"\bcustomer\b")
-# Albanian NIPT: letter, 8 digits, letter. OCR confuses 0/O, 1/I/l, 5/S, 8/B.
+#this line matches an albanian nipt (letter, 8 digits, letter), allowing the ocr mix-ups 0/O, 1/I/l, 5/S, 8/B
 _NIPT = re.compile(r"\b([A-Z])\s?([0-9OoIlSB]{8})\s?([A-Z])\b")
 _DIGIT_FIX = str.maketrans({"O": "0", "o": "0", "I": "1", "l": "1", "S": "5", "B": "8"})
 
@@ -467,19 +464,19 @@ def parse_supplier(lines: list[str]) -> tuple[Optional[str], Optional[str]]:
         f = fold(line)
         m = next(re.search(label, f) for label in _SELLER_LABELS if re.search(label, f))
         rest = line[m.end():].lstrip(" :.-")
-        # Address text bleeding in from the next column: "... light 1,28, fq. 14"
+        #this line cuts off address text bleeding in from the next column: "... light 1,28, fq. 14"
         rest = re.split(r"\s+(?:\S*\d\S*|fq\.?)(?:\s|$)", rest, maxsplit=1)[0]
         name = rest.strip(" ,;:") or None
         if name is None:
-            # The label is a section heading ("Shitës") with the name on an
-            # "Emri:" / "Name:" line under it, as on e-invoices.
+            #this block reads the name from an "Emri:" / "Name:" line under the label,
+            #for when the label is only a section heading ("Shitës") as on e-invoices
             for below in lines[seller_i + 1:seller_i + 4]:
                 m = re.match(r"(?:emri|name)\s*:\s*(.+)", below, re.IGNORECASE)
                 if m:
                     name = m.group(1).strip()
                     break
 
-    # The seller's tax number is the first one inside the seller block.
+    #this line takes the first tax number inside the seller block as the seller's
     tax = None
     if seller_i is not None:
         block_end = buyer_i if buyer_i is not None and buyer_i > seller_i else seller_i + 8
@@ -506,7 +503,7 @@ def parse_totals(lines: list[str], rows: list[ParsedLine]) -> tuple[Optional[flo
         if re.search(r"nentotal|subtotal|pa\s+tvsh|without\s+vat|net\s+total", f):
             subtotal = nums[-1]
         elif re.search(r"\btotal", f):
-            # "TOTALI  1,450.00" under a fiscal invoice is the sum of quantities.
+            #this line skips "TOTALI  1,450.00" under a fiscal invoice, which is the sum of quantities
             if len(nums) == 1 and rows and _close(nums[0], qty_sum):
                 continue
             if len(nums) >= 3 and _close(nums[-3] + nums[-2], nums[-1]):
@@ -520,9 +517,9 @@ def parse_totals(lines: list[str], rows: list[ParsedLine]) -> tuple[Optional[flo
 
 def parse_currency(text: str) -> str:
     f = fold(text)
-    # A labelled currency wins over any amount printed in another one
-    # (e-invoices add a "TOTAL NË LEK" block under a EUR invoice; fiscal
-    # invoices print "Kursi: EUR = 97.50" above both a EUR and a LEK total).
+    #this block lets a labelled currency win over amounts printed in another one
+    #(e-invoices add a "TOTAL NË LEK" block under a eur invoice, fiscal invoices
+    #print "Kursi: EUR = 97.50" above both a eur and a lek total)
     labelled = re.search(r"(?:monedha\s+e\s+fatur\w*|invoice\s+currency|\bkursi)\s*:?\s*([a-z]{3})\b", f)
     if labelled:
         code = labelled.group(1).upper()
@@ -533,8 +530,8 @@ def parse_currency(text: str) -> str:
     return "ALL"
 
 
-# Fiscal invoices print "Kursi: EUR = 97.50"; e-invoices print the rate as
-# "Monedha e llogaritjes së TVSH-së: 96,650000".
+#these labels find the exchange rate: fiscal invoices print "Kursi: EUR = 97.50",
+#e-invoices print it as "Monedha e llogaritjes së TVSH-së: 96,650000"
 _RATE_LABELS = (r"\bkursi\b(?:\s+i\s+kembimit)?", r"exchange\s+rate", r"monedha\s+e\s+llogaritjes")
 
 
@@ -550,18 +547,18 @@ def parse_exchange_rate(lines: list[str]) -> Optional[float]:
     return None
 
 
-# ─── Albanian e-invoice ("Faturë Elektronike") ────────────────────────────────
-# The PDF every supplier gets from the tax office's central invoicing platform.
-# Its layout is fixed. Each item is a table row three text lines tall:
+#this section reads the albanian e-invoice ("Faturë Elektronike"), the pdf every
+#supplier gets from the tax office's central invoicing platform. its layout is
+#fixed and each item is a table row three text lines tall:
 #
-#     KABELL FLEX 5X4 ...      2,11      0,00   S-VAT    description, unit price, discount, VAT code
-#     1   ml                             0,00            row no., unit, surcharge
-#                                                20      VAT rate (centred, so its own line)
-#     200.00                 505,30    421,08            quantity, total with VAT, net
+#    KABELL FLEX 5X4 ...      2,11      0,00   S-VAT    description, unit price, discount, vat code
+#    1   ml                             0,00            row no., unit, surcharge
+#                                               20      vat rate (centred, so its own line)
+#    200.00                 505,30    421,08            quantity, total with vat, net
 #
-# The printed unit price is rounded to cents (0,01 for 0,006), so the price we
-# keep is net / quantity. After the totals, an optional "Specifikimi i
-# hollësishëm" section repeats every item; reading stops before it.
+#the printed unit price is rounded to cents (0,01 for 0,006), so the price we keep
+#is net / quantity. after the totals, an optional "Specifikimi i hollësishëm"
+#section repeats every item, and reading stops before it
 
 _EINVOICE_MARKERS = ("platforma qendrore e faturave", "vlera neto pa tvsh")
 _EINVOICE_ITEMS_START = "artikujt e fatur"
@@ -575,15 +572,15 @@ def is_einvoice(lines: list[str]) -> bool:
 
 
 def _einvoice_item(block: list[str], amounts: list[float], line_no: int) -> ParsedLine:
-    """One item from the lines above its quantity line. The block can start
-    with a page footer and header when the item opens a new page, so the
-    description is the last line ending in price + discount (+ VAT code)."""
+    """this function reads one item from the lines above its quantity line. the
+    block can start with a page footer and header when the item opens a new
+    page, so the description is the last line ending in price + discount (+ vat code)"""
     row = ParsedLine(line_no=line_no, description="")
     desc_i, price, discount, surcharge, rate = None, None, 0.0, 0.0, None
     for i, line in enumerate(block):
         tokens = line.split()
         if len(tokens) > 1 and parse_number(tokens[-1]) is None and len(tokens[-1]) <= 12:
-            tokens = tokens[:-1]  # the VAT code ("S-VAT")
+            tokens = tokens[:-1]  #this line drops the vat code ("S-VAT")
         if len(tokens) >= 3 and any(c.isalpha() for c in " ".join(tokens[:-2])):
             p, d = parse_number(tokens[-2]), parse_number(tokens[-1])
             if p is not None and d is not None:
@@ -600,7 +597,7 @@ def _einvoice_item(block: list[str], amounts: list[float], line_no: int) -> Pars
         elif len(line.split()) == 1 and nums and nums[0] in (0, 6, 10, 20):
             rate = nums[0] / 100
         elif desc_i is not None and sum(c.isalpha() for c in line) >= 3 and not nums:
-            row.description = f"{row.description} {line.strip()}"  # wrapped description
+            row.description = f"{row.description} {line.strip()}"  #this line adds a wrapped description
 
     qty, gross, net = amounts[0], amounts[-2], amounts[-1]
     row.quantity, row.net_amount, row.gross_amount = qty, net, gross
@@ -611,7 +608,7 @@ def _einvoice_item(block: list[str], amounts: list[float], line_no: int) -> Pars
     if desc_i is None or qty <= 0:
         row.issues.append(ROW_MISSING_NUMBERS)
     else:
-        # The printed price is rounded to cents, so allow half a cent per unit.
+        #this line allows half a cent per unit because the printed price is rounded to cents
         printed_ok = abs(qty * price - discount + surcharge - net) <= qty * 0.005 + 0.02
         rates = (rate,) if rate is not None else VAT_RATES
         vat_ok = any(_close(net * (1 + r), gross) for r in rates)
@@ -634,7 +631,7 @@ def parse_einvoice_rows(lines: list[str]) -> list[ParsedLine]:
     block: list[str] = []
     for line in lines[start:end]:
         nums = _numbers_in(line)
-        # The quantity line closes an item: quantity, total with VAT, net.
+        #this line closes an item at its quantity line: quantity, total with vat, net
         if len(nums) >= 3 and not any(c.isalpha() for c in line):
             rows.append(_einvoice_item(block, nums, len(rows) + 1))
             block = []
@@ -644,8 +641,8 @@ def parse_einvoice_rows(lines: list[str]) -> list[ParsedLine]:
 
 
 def _labelled_amount(lines: list[str], label: str) -> Optional[float]:
-    """First amount after a label, e.g. 'Shuma totale me TVSH: 1 143,83 EUR'.
-    The first match is taken: the same labels repeat later in lek."""
+    """this function returns the first amount after a label, e.g. 'Shuma totale me TVSH: 1 143,83 EUR'.
+    it takes the first match because the same labels repeat later in lek"""
     for line in lines:
         m = re.search(label + r"[^:]*:\s*(-?[\d][\d .,]*)", fold(line))
         if m:
@@ -661,7 +658,7 @@ def parse_einvoice_totals(lines: list[str]) -> tuple[Optional[float], Optional[f
     )
 
 
-# ─── Entry point ──────────────────────────────────────────────────────────────
+#this section is the entry point
 def parse_invoice(text: str) -> ParsedInvoice:
     lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.splitlines()]
     lines = [line for line in lines if line]
@@ -688,7 +685,7 @@ def parse_invoice(text: str) -> ParsedInvoice:
     if inv.subtotal is None and inv.total is not None and inv.vat_total is not None:
         inv.subtotal = round(inv.total - inv.vat_total, 2)
     if inv.subtotal is None and inv.total is not None and priced:
-        # Only the grand total was printed (or read): take the net from the rows.
+        #this line takes the net from the rows when only the grand total was printed (or read)
         inv.subtotal = net_sum
     if inv.vat_total is None and inv.total is not None and inv.subtotal is not None:
         inv.vat_total = round(inv.total - inv.subtotal, 2)

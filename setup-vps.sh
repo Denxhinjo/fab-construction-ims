@@ -1,9 +1,6 @@
 #!/bin/bash
-# ═══════════════════════════════════════════════════════════════════════
-#  Fab Construction IMS — VPS Setup Script
-#  Run as root (or with sudo) on a fresh Ubuntu 22.04 / 24.04 server
-#  Usage:  bash setup-vps.sh
-# ═══════════════════════════════════════════════════════════════════════
+#this script sets up fab construction ims on a fresh ubuntu 22.04 / 24.04 server
+#this script must run as root (or with sudo), usage: bash setup-vps.sh
 set -e
 
 GREEN='\033[0;32m'
@@ -21,11 +18,11 @@ echo "║   Fab Construction IMS — VPS Setup Script     ║"
 echo "╚═══════════════════════════════════════════════╝"
 echo ""
 
-# ─── 1. System Update ──────────────────────────────────────────────────
+#this step updates the system
 log "Updating system packages..."
 apt-get update -qq && apt-get upgrade -y -qq
 
-# ─── 2. Install Docker ─────────────────────────────────────────────────
+#this step installs docker
 if ! command -v docker &>/dev/null; then
     log "Installing Docker..."
     apt-get install -y -qq ca-certificates curl gnupg lsb-release
@@ -45,7 +42,7 @@ else
     log "Docker already installed: $(docker --version)"
 fi
 
-# ─── 3. Install Docker Compose standalone ──────────────────────────────
+#this step installs docker compose standalone
 if ! command -v docker-compose &>/dev/null; then
     log "Installing Docker Compose..."
     COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
@@ -57,7 +54,7 @@ else
     log "Docker Compose already installed: $(docker-compose --version)"
 fi
 
-# ─── 4. Configure firewall ─────────────────────────────────────────────
+#this step sets up the firewall
 if command -v ufw &>/dev/null; then
     log "Configuring firewall..."
     ufw allow 22/tcp comment "SSH"    > /dev/null
@@ -67,7 +64,7 @@ if command -v ufw &>/dev/null; then
     log "Firewall configured (SSH + HTTP + HTTPS allowed)"
 fi
 
-# ─── 5. Clone or update repository ────────────────────────────────────
+#this step clones or updates the repository
 APP_DIR="/opt/fab-ims"
 
 if [ -z "$GITHUB_REPO" ]; then
@@ -85,20 +82,20 @@ else
     cd "$APP_DIR"
 fi
 
-# ─── 6. Generate .env if missing ───────────────────────────────────────
+#this step makes the .env file if it is missing
 if [ ! -f "$APP_DIR/.env" ]; then
     log "Creating .env from template..."
     cp "$APP_DIR/.env.example" "$APP_DIR/.env"
 
-    # Auto-generate a strong SECRET_KEY
+    #this line makes a strong SECRET_KEY
     SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
     sed -i "s/CHANGE_THIS_TO_A_RANDOM_64_CHAR_HEX_STRING/$SECRET/" "$APP_DIR/.env"
 
-    # Auto-generate a strong DB password
+    #this line makes a strong database password
     DBPASS=$(python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_letters+string.digits) for _ in range(24)))")
     sed -i "s/ChangeMe_StrongPassword_123!/$DBPASS/" "$APP_DIR/.env"
 
-    # Set ALLOWED_ORIGINS to the server's public IP
+    #this line sets ALLOWED_ORIGINS to the server's public ip
     SERVER_IP=$(curl -s https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
     sed -i "s|ALLOWED_ORIGINS=http://localhost:3000|ALLOWED_ORIGINS=http://$SERVER_IP|" "$APP_DIR/.env"
 
@@ -106,12 +103,12 @@ if [ ! -f "$APP_DIR/.env" ]; then
     warn "If you have a domain, edit /opt/fab-ims/.env and update ALLOWED_ORIGINS."
 fi
 
-# ─── 7. Build and start the application ───────────────────────────────
+#this step builds and starts the app
 log "Building and starting all containers (this takes 3-5 minutes)..."
 cd "$APP_DIR"
 docker-compose --env-file .env up -d --build
 
-# ─── 8. Wait for backend to be ready ──────────────────────────────────
+#this step waits for the backend to be ready
 log "Waiting for services to become ready..."
 for i in $(seq 1 30); do
     if curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
@@ -120,7 +117,7 @@ for i in $(seq 1 30); do
     sleep 3
 done
 
-# ─── 9. Done ──────────────────────────────────────────────────────────
+#this step is done
 SERVER_IP=$(curl -s https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
 
 echo ""

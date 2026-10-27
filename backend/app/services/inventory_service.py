@@ -1,11 +1,11 @@
 """
-Centralized inventory operations service.
+this file holds the inventory operations
 
-All stock-changing operations should go through this module to ensure:
-- Database transactions protect against concurrent modifications
-- Both product.quantity (global total) and product_stock (per-location) are consistent
-- Stock movements are always recorded with full audit context
-- Stock cannot go negative without explicit permission
+every stock change should go through this file so that:
+- database transactions protect against concurrent changes
+- product.quantity (global total) and product_stock (per location) stay consistent
+- stock movements are always recorded with full audit context
+- stock cannot go negative without explicit permission
 """
 from datetime import date
 from typing import Optional
@@ -18,7 +18,7 @@ from ..models.stock_movement import StockMovement, INBOUND_TYPES, OUTBOUND_TYPES
 
 
 def _get_or_create_stock(db: Session, product_id: int, location_id: int) -> ProductStock:
-    """Return the ProductStock row for product+location, creating it at qty=0 if missing."""
+    """this function returns the ProductStock row for product+location, creating it at qty=0 if missing"""
     stock = (
         db.query(ProductStock)
         .filter(ProductStock.product_id == product_id, ProductStock.location_id == location_id)
@@ -33,7 +33,7 @@ def _get_or_create_stock(db: Session, product_id: int, location_id: int) -> Prod
 
 
 def get_stock(db: Session, product_id: int, location_id: int) -> ProductStock | None:
-    """Return the ProductStock row without locking. None if no stock entry exists."""
+    """this function returns the ProductStock row without locking, or None if there is no stock entry"""
     return (
         db.query(ProductStock)
         .filter(ProductStock.product_id == product_id, ProductStock.location_id == location_id)
@@ -42,7 +42,7 @@ def get_stock(db: Session, product_id: int, location_id: int) -> ProductStock | 
 
 
 def get_available(db: Session, product_id: int, location_id: int) -> float:
-    """Return available quantity (on_hand - reserved) at a specific location."""
+    """this function returns the available quantity (on hand - reserved) at a location"""
     stock = get_stock(db, product_id, location_id)
     if stock is None:
         return 0.0
@@ -50,7 +50,7 @@ def get_available(db: Session, product_id: int, location_id: int) -> float:
 
 
 def reserve_stock(db: Session, product_id: int, location_id: int, quantity: float) -> None:
-    """Reserve stock for a pending operation (e.g. approved material request)."""
+    """this function reserves stock for a pending operation (e.g. an approved material request)"""
     stock = _get_or_create_stock(db, product_id, location_id)
     available = stock.quantity - stock.reserved_quantity
     if available < quantity:
@@ -63,7 +63,7 @@ def reserve_stock(db: Session, product_id: int, location_id: int, quantity: floa
 
 
 def release_reservation(db: Session, product_id: int, location_id: int, quantity: float) -> None:
-    """Release a reservation without consuming the stock."""
+    """this function releases a reservation without using up the stock"""
     stock = get_stock(db, product_id, location_id)
     if stock is None:
         return
@@ -90,14 +90,15 @@ def record_movement(
     consume_reservation: bool = False,
 ) -> StockMovement:
     """
-    Record a stock movement and update product_stock + product.quantity in one transaction.
+    this function records a stock movement and updates product_stock + product.quantity
+    in one transaction
 
-    INBOUND types (Purchase Receipt, Transfer In, Adjustment In, ...) add to
+    inbound types (purchase receipt, transfer in, adjustment in, ...) add to
     destination_location_id (or source_location_id when only that is given).
-    OUTBOUND types (Transfer Out, Adjustment Out, ...) remove from
-    source_location_id, refusing to go below the available quantity.
+    outbound types (transfer out, adjustment out, ...) remove from
+    source_location_id and refuse to go below the available quantity.
 
-    Caller must commit the session after this call returns.
+    the caller must commit the session after this returns
     """
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be greater than zero.")
@@ -159,8 +160,8 @@ def record_movement(
 
 
 def apply_purchase_cost(product: Product, quantity: float, unit_cost: Optional[float]) -> None:
-    """Fold a purchase into the product's weighted average cost. Call
-    *before* record_movement, while product.quantity is still the old total."""
+    """this function folds a purchase into the product's weighted average cost. call it
+    *before* record_movement, while product.quantity is still the old total"""
     if unit_cost is None:
         return
     old_qty = max(product.quantity, 0.0)
@@ -173,8 +174,8 @@ def adjust_to_count(
     db: Session, *, product_id: int, location_id: int, counted: float, user_id: int,
     reference_number: str, note: Optional[str] = None,
 ) -> Optional[StockMovement]:
-    """Set a warehouse's quantity to a physical count. Returns None when the
-    count already matches."""
+    """this function sets a warehouse's quantity to a physical count and returns None
+    when the count already matches"""
     stock = _get_or_create_stock(db, product_id, location_id)
     delta = round(counted - stock.quantity, 6)
     if delta == 0:
@@ -195,8 +196,8 @@ def adjust_to_count(
 
 def generate_reference(db: Session, prefix: str, model_class, ref_column: str, year: int) -> str:
     """
-    Generate a human-readable reference like 'TR-2026-0001'.
-    Uses count+1 approach but with a sequence guard via UNIQUE constraint.
+    this function makes a readable reference like 'TR-2026-0001', using count+1
+    with a unique constraint as the guard
     """
     count = db.query(model_class).filter(
         getattr(model_class, ref_column).like(f"{prefix}-{year}-%")
