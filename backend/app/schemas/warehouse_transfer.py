@@ -96,8 +96,8 @@ class ReceiveItemIn(BaseModel):
 
 
 class ReceiveTransferIn(BaseModel):
-    """Omit `items` when everything arrived. Otherwise list what actually
-    arrived per item; any shortfall closes the transfer as received with
-    differences."""
+    """this class confirms a delivery. leave out `items` when everything arrived,
+    otherwise list what actually arrived per item, and any shortfall closes the
+    transfer as received with differences"""
     items: Optional[list[ReceiveItemIn]] = None
     notes: Optional[str] = None

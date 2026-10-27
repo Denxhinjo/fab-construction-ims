@@ -77,7 +77,7 @@ export default function SupplierList() {
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }))
 
-  // Mask contact details for non-admin users
+  //this line hides contact details from non-admin users
   const maskContact = (value: string | undefined) => {
     if (!value) return null
     if (isAdmin) return value
@@ -99,7 +99,7 @@ export default function SupplierList() {
         )}
       </div>
 
-      {/* Privacy notice for non-admins */}
+      {/*this block is the privacy notice for non-admins*/}
       {!isAdmin && (
         <div className="flex items-center gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
           <EyeOff className="w-4 h-4 flex-shrink-0" />
@@ -183,7 +183,7 @@ export default function SupplierList() {
         </div>
       )}
 
-      {/* Create / Edit Modal */}
+      {/*this block is the create/edit modal*/}
       <Modal open={modal !== null} onClose={closeModal} title={modal === 'create' ? t('suppliers.createSupplier') : t('suppliers.editSupplier')} size="lg">
         <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">

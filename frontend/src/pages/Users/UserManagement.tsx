@@ -100,7 +100,7 @@ export default function UserManagement() {
         </button>
       </div>
 
-      {/* Stats */}
+      {/*this block shows the stats*/}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: t('users.totalUsers'), value: users?.length ?? 0, icon: <Users className="w-5 h-5 text-blue-600" />, bg: 'bg-blue-100' },
@@ -118,7 +118,7 @@ export default function UserManagement() {
         ))}
       </div>
 
-      {/* Table */}
+      {/*this block is the users table*/}
       <div className="card overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16"><Spinner size="lg" /></div>
@@ -195,7 +195,7 @@ export default function UserManagement() {
         )}
       </div>
 
-      {/* Create Modal */}
+      {/*this block is the create modal*/}
       <Modal open={modal === 'create'} onClose={closeModal} title={t('users.addNewUser')} size="md">
         <form onSubmit={handleCreateSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -233,7 +233,7 @@ export default function UserManagement() {
         </form>
       </Modal>
 
-      {/* Edit Modal */}
+      {/*this block is the edit modal*/}
       <Modal open={modal === 'edit'} onClose={closeModal} title={`${t('users.editUser')} ${editTarget?.full_name}`} size="md">
         <form onSubmit={handleEditSubmit} className="space-y-4">
           <FormField label={t('users.fullName')}>

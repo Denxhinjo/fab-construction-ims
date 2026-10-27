@@ -58,7 +58,7 @@ export default function StockPage() {
     URL.revokeObjectURL(url)
   }
 
-  /** Start a transfer from the warehouse holding the most of this material. */
+  //this function starts a transfer from the warehouse holding the most of this material
   const transfer = (row: StockRow) => {
     const best = locations.reduce((a, b) => (row.cells[b.id].quantity > row.cells[a.id].quantity ? b : a), locations[0])
     navigate(`/transfers?from=${best.id}&product=${row.id}`)

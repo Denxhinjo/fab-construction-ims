@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { AlertTriangle } from 'lucide-react'
 
-/** Shown instead of a page when its data couldn't be loaded. */
+//this component is shown instead of a page when its data couldn't be loaded
 export default function LoadError({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation()
   return (

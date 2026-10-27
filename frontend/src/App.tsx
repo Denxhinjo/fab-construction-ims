@@ -6,7 +6,7 @@ import Layout from './components/layout/Layout'
 import Login from './pages/Login'
 import Spinner from './components/ui/Spinner'
 
-// Route-level code-split — loaded on demand
+//these lines load each page only when it is opened
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const StockPage = lazy(() => import('./pages/Stock/StockPage'))
 const ReceiptsPage = lazy(() => import('./pages/Receipts/ReceiptsPage'))

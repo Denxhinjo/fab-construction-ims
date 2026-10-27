@@ -1,7 +1,7 @@
 """
-Shared pytest fixtures. Tests run against an in-memory SQLite database (via
-FastAPI's dependency-override mechanism) rather than the real Postgres
-instance, so the suite needs nothing running and can't touch dev/prod data.
+this file holds the shared pytest fixtures. tests run against an in-memory sqlite
+database (through fastapi's dependency overrides) instead of the real postgres,
+so the suite needs nothing running and can't touch dev/prod data
 """
 import sys
 import os
@@ -130,8 +130,8 @@ def viewer_user(db_session):
 
 
 def add_stock(db_session, product: Product, location: Location, quantity: float, minimum=None) -> ProductStock:
-    """Put stock straight into a warehouse, keeping product.quantity in sync
-    the way inventory_service does."""
+    """this function puts stock straight into a warehouse, keeping product.quantity in
+    sync the way inventory_service does"""
     stock = ProductStock(product_id=product.id, location_id=location.id, quantity=quantity, min_quantity=minimum)
     product.quantity = (product.quantity or 0) + quantity
     db_session.add(stock)
@@ -141,7 +141,7 @@ def add_stock(db_session, product: Product, location: Location, quantity: float,
 
 @pytest.fixture()
 def products_in_both_locations(db_session, two_locations):
-    """Product A: 10 in A (min 2). Product B: 1 in B (min 5, so below)."""
+    """this function makes product a with 10 in a (min 2) and product b with 1 in b (min 5, so below)"""
     loc_a, loc_b = two_locations
     product_a = Product(name="Product A", quantity=0, min_stock_level=2, unit="copë", avg_cost=5)
     product_b = Product(name="Product B", quantity=0, min_stock_level=5, unit="copë", avg_cost=10)

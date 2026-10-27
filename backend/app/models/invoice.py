@@ -5,23 +5,25 @@ from sqlalchemy.orm import relationship, deferred
 from sqlalchemy.sql import func
 from ..database import Base
 
-# review   -- read (fully or partly); waiting for a person to check and confirm
-# failed   -- nothing usable could be read; can still be filled in by hand
-# accepted -- confirmed; its stock lines have been booked into the warehouse
-# rejected -- discarded by a person; nothing was booked
+#these are the invoice statuses:
+#review   -- read (fully or partly), waiting for a person to check and confirm
+#failed   -- nothing usable could be read, it can still be filled in by hand
+#accepted -- confirmed, its stock lines have been booked into the warehouse
+#rejected -- discarded by a person, nothing was booked
 INVOICE_STATUSES = ["review", "failed", "accepted", "rejected"]
 EDITABLE_INVOICE_STATUSES = ("review", "failed")
 
-# stock -- a material that enters the warehouse
-# extra -- a cost on the invoice that is not stock (transport, services)
-# skip  -- ignored entirely
+#these are the invoice line kinds:
+#stock -- a material that enters the warehouse
+#extra -- a cost on the invoice that is not stock (transport, services)
+#skip  -- ignored entirely
 LINE_KINDS = ["stock", "extra", "skip"]
 
 
 class Invoice(Base):
-    """A supplier invoice uploaded as a PDF or photo. The file is kept in the
-    database (not on disk) so it survives redeploys on hosts with an
-    ephemeral filesystem."""
+    """this class is a supplier invoice uploaded as a pdf or photo. the file is kept in
+    the database (not on disk) so it survives redeploys on hosts with an
+    ephemeral filesystem"""
     __tablename__ = "invoices"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -32,11 +34,11 @@ class Invoice(Base):
     file_size = Column(Integer, nullable=False, default=0)
     file_data = deferred(Column(LargeBinary, nullable=False))
 
-    # What was read from the document (kept even after a person edits the
-    # matched values, so a bad read can be diagnosed later).
+    #these columns keep what was read from the document, even after a person edits
+    #the matched values, so a bad read can be diagnosed later
     raw_text = deferred(Column(Text, nullable=True))
     used_ocr = Column(Boolean, default=False, nullable=False)
-    read_issues = Column(Text, nullable=True)  # JSON list of issue codes
+    read_issues = Column(Text, nullable=True)  #this line keeps a json list of issue codes
     supplier_name_raw = Column(String(255), nullable=True)
     supplier_tax_number = Column(String(50), nullable=True)
 
@@ -44,7 +46,7 @@ class Invoice(Base):
     invoice_number = Column(String(100), nullable=True, index=True)
     invoice_date = Column(Date, nullable=True)
     currency = Column(String(3), default="ALL", nullable=False)
-    # Lek per unit of `currency`; costs are converted with it when booked.
+    #this line keeps the lek per unit of `currency`, used to convert costs when booked
     exchange_rate = Column(Float, nullable=True)
     subtotal = Column(Float, nullable=True)
     vat_total = Column(Float, nullable=True)
@@ -74,7 +76,7 @@ class InvoiceLine(Base):
     invoice_id = Column(Integer, ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
     line_no = Column(Integer, nullable=False)
 
-    # As printed on the invoice
+    #these columns keep the row as printed on the invoice
     code = Column(String(100), nullable=True)
     raw_description = Column(String(500), nullable=True)
     raw_unit = Column(String(50), nullable=True)
@@ -82,19 +84,19 @@ class InvoiceLine(Base):
     kind = Column(String(10), default="stock", nullable=False)
     quantity = Column(Float, nullable=True)
     unit = Column(String(50), nullable=True)
-    unit_price = Column(Float, nullable=True)  # excluding VAT
+    unit_price = Column(Float, nullable=True)  #this line keeps the price without vat
     net_amount = Column(Float, nullable=True)
     vat_amount = Column(Float, nullable=True)
     gross_amount = Column(Float, nullable=True)
 
-    # ok -- every arithmetic check on the row passed; check -- needs a person
+    #this line keeps the confidence: ok means every arithmetic check passed, check means it needs a person
     confidence = Column(String(10), default="check", nullable=False)
-    issues = Column(Text, nullable=True)  # JSON list of issue codes
+    issues = Column(Text, nullable=True)  #this line keeps a json list of issue codes
 
-    # Which material the line books into. When product_id is null on a stock
-    # line, a new material is created from new_* on acceptance.
+    #these columns say which material the line books into. when product_id is null on a
+    #stock line, a new material is created from new_* on acceptance
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
-    match_method = Column(String(20), nullable=True)  # alias / sku / name / manual
+    match_method = Column(String(20), nullable=True)  #this line keeps how the match was made: alias / sku / name / manual
     new_name = Column(String(255), nullable=True)
     new_category = Column(String(100), nullable=True)
     new_min = Column(Float, nullable=True)

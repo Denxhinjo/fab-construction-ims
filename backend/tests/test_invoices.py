@@ -9,7 +9,7 @@ from tests.conftest import add_stock, auth_headers
 
 
 def make_pdf(lines: list[str]) -> bytes:
-    """A digital (text-layer) invoice PDF, like invoicing software exports."""
+    """this function makes a digital (text-layer) invoice pdf, like invoicing software exports"""
     doc = fitz.open()
     page = doc.new_page()
     for i, line in enumerate(lines):
@@ -82,7 +82,7 @@ def test_upload_reads_matches_and_waits_for_review(client, admin_headers, two_lo
     assert inv["used_ocr"] is False
     assert inv["invoice_number"] == "523"
     assert inv["invoice_date"] == "2026-10-08"
-    assert inv["supplier_id"] == supplier.id  # matched by NIPT
+    assert inv["supplier_id"] == supplier.id  #this line checks the supplier was matched by nipt
     assert inv["total"] == 2044.80
     assert inv["review_queue"] == [inv["id"]]
 
@@ -92,7 +92,7 @@ def test_upload_reads_matches_and_waits_for_review(client, admin_headers, two_lo
     assert mesh_line["product_id"] is None and mesh_line["new_name"] == "Rrjete armature Q188"
     assert transport["kind"] == "extra"
 
-    # Nothing is booked until someone confirms.
+    #this line checks nothing is booked until someone confirms
     assert client.get("/api/stock", headers=admin_headers).json()["rows"][0]["total"] == 0
 
 
@@ -115,7 +115,7 @@ def test_accept_books_stock_creates_materials_and_remembers_aliases(
     mesh = stock["Rrjetë armature Q188"]
     assert mesh["cells"][str(loc_a.id)] == {"quantity": 20, "min": 20, "below_min": False}
     assert mesh["category"] == "Hekur"
-    assert "Transport deri ne depo" not in stock  # extra cost, not stock
+    assert "Transport deri ne depo" not in stock  #this line checks the extra cost did not become stock
 
     history = client.get("/api/stock-movements?kind=in", headers=admin_headers).json()
     assert history["total"] == 2
@@ -134,14 +134,14 @@ def test_second_invoice_matches_by_alias_and_averages_cost(client, admin_headers
         client, admin_headers, make_pdf(invoice_lines("524", "16.90", "1,014.00")), loc_a.id,
     ).json()
     mesh_line = second["lines"][1]
-    assert mesh_line["match_method"] == "alias"  # created by the first invoice
+    assert mesh_line["match_method"] == "alias"  #this line checks the alias made by the first invoice is used
     rebar_line = second["lines"][0]
     assert rebar_line["match_method"] == "alias"
 
     client.post(f"/api/invoices/{second['id']}/accept", headers=admin_headers, json=accept_payload(second))
     row = next(r for r in client.get("/api/stock", headers=admin_headers).json()["rows"] if r["id"] == rebar.id)
     assert row["total"] == 120
-    assert row["avg_cost"] == pytest.approx(15.9)  # (60 x 14.90 + 60 x 16.90) / 120
+    assert row["avg_cost"] == pytest.approx(15.9)  #this line checks (60 x 14.90 + 60 x 16.90) / 120
 
 
 def test_same_invoice_twice_needs_confirmation(client, admin_headers, two_locations, supplier, rebar):
@@ -169,7 +169,7 @@ def test_accept_requires_warehouse_and_names_for_new_materials(client, admin_hea
     payload["lines"][1]["new_name"] = ""
     res = client.post(f"/api/invoices/{inv['id']}/accept", headers=admin_headers, json=payload)
     assert res.status_code == 400 and "Row 2" in res.json()["detail"]
-    # A failed accept leaves the invoice open and stock untouched.
+    #this line checks a failed accept leaves the invoice open and stock untouched
     assert client.get(f"/api/invoices/{inv['id']}", headers=admin_headers).json()["status"] == "review"
     assert client.get("/api/stock-movements", headers=admin_headers).json()["total"] == 0
 
@@ -177,7 +177,7 @@ def test_accept_requires_warehouse_and_names_for_new_materials(client, admin_hea
 def test_save_for_later_then_reject(client, admin_headers, two_locations, supplier, rebar):
     inv = upload(client, admin_headers, make_pdf(invoice_lines())).json()
     payload = accept_payload(inv, location_id=two_locations[1].id)
-    payload["lines"] = payload["lines"][:1]  # drop rows 2-3
+    payload["lines"] = payload["lines"][:1]  #this line drops rows 2-3
     saved = client.put(f"/api/invoices/{inv['id']}", headers=admin_headers, json=payload).json()
     assert saved["location_id"] == two_locations[1].id
     assert len(saved["lines"]) == 1
@@ -202,12 +202,12 @@ def test_new_supplier_created_on_review(client, admin_headers, two_locations, re
 def test_scan_without_ocr_is_kept_for_manual_entry(client, admin_headers, monkeypatch, two_locations):
     monkeypatch.setattr(invoice_reader, "ocr_available", lambda: False)
     doc = fitz.open()
-    doc.new_page().insert_text((40, 60), "CamScanner", fontsize=9)  # a scan: no real text layer
+    doc.new_page().insert_text((40, 60), "CamScanner", fontsize=9)  #this line makes a scan with no real text layer
     inv = upload(client, admin_headers, doc.tobytes(), two_locations[0].id, name="skanim.pdf").json()
     assert inv["status"] == "failed"
     assert inv["read_issues"] == ["ocr_unavailable"]
 
-    # Entered by hand: a row with no id is added.
+    #this block enters the invoice by hand, a row with no id is added
     payload = {
         "new_supplier": {"name": "Gurorja"},
         "invoice_number": "77",
@@ -268,7 +268,7 @@ def test_euro_invoice_costs_are_converted_to_lek(client, admin_headers, two_loca
     inv = upload(client, admin_headers, make_pdf(lines), loc_a.id).json()
     assert (inv["currency"], inv["exchange_rate"]) == ("EUR", 100.0)
 
-    # Without a rate the invoice can't be booked: its costs couldn't be valued in lek.
+    #this block checks the invoice can't be booked without a rate, since its costs couldn't be valued in lek
     res = client.post(f"/api/invoices/{inv['id']}/accept", headers=admin_headers,
                       json=accept_payload(inv, exchange_rate=None))
     assert res.status_code == 400 and "exchange rate" in res.json()["detail"]
@@ -276,4 +276,4 @@ def test_euro_invoice_costs_are_converted_to_lek(client, admin_headers, two_loca
     res = client.post(f"/api/invoices/{inv['id']}/accept", headers=admin_headers, json=accept_payload(inv))
     assert res.status_code == 200, res.text
     row = next(r for r in client.get("/api/stock", headers=admin_headers).json()["rows"] if r["id"] == rebar.id)
-    assert row["avg_cost"] == pytest.approx(1490.0)  # 14.90 EUR x 100
+    assert row["avg_cost"] == pytest.approx(1490.0)  #this line checks 14.90 eur x 100

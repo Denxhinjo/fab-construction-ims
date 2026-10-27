@@ -12,7 +12,7 @@ class ProductStock(Base):
     location_id = Column(Integer, ForeignKey("locations.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Float, default=0.0, nullable=False)
     reserved_quantity = Column(Float, default=0.0, nullable=False)
-    # Per-warehouse minimum; NULL means "use the product's min_stock_level".
+    #this line keeps the per-warehouse minimum, null means "use the product's min_stock_level"
     min_quantity = Column(Float, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

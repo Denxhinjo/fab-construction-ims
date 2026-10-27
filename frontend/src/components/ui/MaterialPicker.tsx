@@ -12,11 +12,11 @@ interface MaterialPickerProps {
   exclude?: number[]
   autoFocus?: boolean
   className?: string
-  /** Show this alongside each result, e.g. the quantity in a warehouse. */
+  //this prop shows extra text next to each result, e.g. the quantity in a warehouse
   hint?: (product: ProductSummary) => string | undefined
 }
 
-/** Type-ahead search over materials by name or SKU. */
+//this component searches materials by name or sku as you type
 export default function MaterialPicker({ onPick, placeholder, exclude = [], autoFocus, className = '', hint }: MaterialPickerProps) {
   const { t } = useTranslation()
   const [query, setQuery] = useState('')

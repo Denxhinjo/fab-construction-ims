@@ -1,6 +1,6 @@
-"""Read-only movement history ("Historiku"). Stock changes only through
-invoices, transfers and physical-count corrections, each of which records
-its own movements."""
+"""this file serves the read-only movement history ("Historiku"). stock changes only
+through invoices, transfers and physical-count corrections, and each of those
+records its own movements"""
 import math
 from datetime import date
 from typing import Optional

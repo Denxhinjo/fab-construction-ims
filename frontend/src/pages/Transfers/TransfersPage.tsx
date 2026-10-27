@@ -56,7 +56,7 @@ export default function TransfersPage() {
   const [printing, setPrinting] = useState<NoteData | null>(null)
   const [differences, setDifferences] = useState<WarehouseTransfer | null>(null)
 
-  // Defaults, and prefill from links like /transfers?from=1&to=2&product=7&qty=32
+  //this block sets the defaults and prefills from links like /transfers?from=1&to=2&product=7&qty=32
   useEffect(() => {
     if (!locations.length || from !== undefined) return
     const pFrom = Number(params.get('from')) || locations[0].id

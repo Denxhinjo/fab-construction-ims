@@ -8,13 +8,13 @@ from .supplier import SupplierSummary
 class ProductWrite(BaseModel):
     name: str
     sku: Optional[str] = None
-    # Free text; an unknown name creates the category.
+    #this line takes free text, and an unknown name creates the category
     category_name: Optional[str] = None
     unit: str = "copë"
     min_stock_level: float = 0
     unit_price: Optional[float] = None
     notes: Optional[str] = None
-    # Per-warehouse minimums, keyed by location id. Omitted warehouses keep theirs.
+    #this line takes per-warehouse minimums keyed by location id, warehouses left out keep theirs
     location_mins: dict[int, Optional[float]] = {}
 
     @field_validator("name")
@@ -60,7 +60,7 @@ class ProductSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# ─── Stock matrix (one row per material, one cell per warehouse) ─────────────
+#this section is the stock matrix: one row per material, one cell per warehouse
 class StockCell(BaseModel):
     quantity: float
     min: float

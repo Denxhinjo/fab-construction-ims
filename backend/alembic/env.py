@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database import Base
-from app.models import *  # noqa — import all models so Alembic sees them
+from app.models import *  # noqa  #this line imports all models so alembic sees them
 from app.config import settings
 
 config = context.config

@@ -15,7 +15,7 @@ from ..dependencies import get_current_user
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# In-memory brute-force guard: {ip: [timestamp, ...]}
+#this line keeps the failed login times per ip in memory to slow down password guessing: {ip: [timestamp, ...]}
 _login_attempts: dict = defaultdict(list)
 _MAX_ATTEMPTS = 10
 _WINDOW_SECONDS = 60
@@ -43,9 +43,9 @@ def hash_password(password: str) -> str:
 
 def create_access_token(user_id: int, pwd_fingerprint: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    # "cf" = credential fingerprint: first 8 chars of the bcrypt hash.
-    # If the password changes the fingerprint changes, instantly invalidating
-    # any token issued before the change — no token blacklist or DB column needed.
+    #this line adds "cf", a credential fingerprint made of the first 8 chars of the bcrypt hash.
+    #when the password changes the fingerprint changes, which instantly invalidates every
+    #token issued before, with no token blacklist or db column needed
     data = {"sub": str(user_id), "exp": expire, "cf": pwd_fingerprint}
     return jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
